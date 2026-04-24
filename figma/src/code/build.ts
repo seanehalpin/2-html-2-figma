@@ -8,29 +8,75 @@ import { applyFrameProperties } from './nodes/frame';
 import { applyTextProperties } from './nodes/text';
 
 const ICON_PARENT_TAGS = new Set(['a', 'span', 'button']);
+const GEOMETRY_TYPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'ELLIPSE', 'POLYGON', 'RECTANGLE', 'LINE']);
 
 /**
- * Walk a node created by createNodeFromSvg and apply `color` as stroke on leaf
- * geometry nodes only (VectorNode etc.) — container frames are left untouched.
+ * Recursively extract all leaf geometry nodes from an SVG-created node tree,
+ * placing them directly in `target` at the correct absolute position.
+ * All intermediate containers (Frame, Group, clip-path wrappers) are discarded.
+ *
+ * dx/dy accumulate the offset chain from the original svgFrame's position down
+ * through any nested containers so every leaf ends up at the right spot.
  */
-function applyIconColor(node: SceneNode, color: { r: number; g: number; b: number; a: number }): void {
-  const GEOMETRY_TYPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'ELLIPSE', 'POLYGON', 'RECTANGLE', 'LINE']);
+function removeClipGroups(node: BaseNode): void {
+  if (!('children' in node)) return;
+  for (const child of [...(node as ChildrenMixin).children]) {
+    if (/clip\d/i.test(child.name)) {
+      child.remove();
+    } else {
+      removeClipGroups(child);
+    }
+  }
+}
+
+function paintVectors(
+  node: SceneNode,
+  color: { r: number; g: number; b: number; a: number },
+): void {
   if (GEOMETRY_TYPES.has(node.type)) {
     const paint: SolidPaint = { type: 'SOLID', color: { r: color.r, g: color.g, b: color.b }, opacity: color.a };
     (node as GeometryMixin).fills = [];
     (node as GeometryMixin).strokes = [paint];
+    return;
   }
   if ('children' in node) {
     for (const child of (node as ChildrenMixin).children) {
-      applyIconColor(child, color);
+      paintVectors(child, color);
     }
+  }
+}
+
+function extractVectors(
+  node: SceneNode,
+  target: FrameNode | PageNode,
+  dx: number,
+  dy: number,
+  iconColor?: { r: number; g: number; b: number; a: number },
+): void {
+  if (GEOMETRY_TYPES.has(node.type)) {
+    node.x += dx;
+    node.y += dy;
+    if (iconColor) {
+      const paint: SolidPaint = { type: 'SOLID', color: { r: iconColor.r, g: iconColor.g, b: iconColor.b }, opacity: iconColor.a };
+      (node as GeometryMixin).fills = [];
+      (node as GeometryMixin).strokes = [paint];
+    }
+    target.appendChild(node);
+    return;
+  }
+  if ('children' in node) {
+    const nx = 'x' in node ? (node as { x: number }).x : 0;
+    const ny = 'y' in node ? (node as { y: number }).y : 0;
+    for (const child of [...(node as ChildrenMixin).children]) {
+      extractVectors(child, target, dx + nx, dy + ny, iconColor);
+    }
+    node.remove();
   }
 }
 
 export interface BuildOptions {
   simplify: boolean;
   onProgress: (current: number, total: number, phase: string) => void;
-  svgImages: Record<string, number[]>;
 }
 
 function isTextNode(node: CapturedNode): boolean {
@@ -51,7 +97,6 @@ async function walkTree(
   warnings: BuildWarning[],
   counter: { n: number; total: number },
   onProgress: (current: number, total: number, phase: string) => void,
-  svgImages: Record<string, number[]>,
   inherited: Record<string, string> = {},
   parentTag = '',
 ): Promise<void> {
@@ -70,49 +115,40 @@ async function walkTree(
   if (node.svgData !== undefined) {
     try {
       const svgFrame = figma.createNodeFromSvg(node.svgData);
-      svgFrame.name = `svg · ${node.id}`;
-      svgFrame.x = Math.round(relX);
-      svgFrame.y = Math.round(relY);
+      removeClipGroups(svgFrame);
       const targetW = Math.max(1, node.rect.width);
-      if (svgFrame.width > 0) {
-        svgFrame.rescale(targetW / svgFrame.width);
-      }
-      // Icon SVGs: apply captured color as stroke, no fill.
-      if (ICON_PARENT_TAGS.has(parentTag)) {
-        const iconColor = parseColor(effective['color'] || '');
-        if (iconColor && iconColor.a > 0) {
-          applyIconColor(svgFrame, iconColor);
-        }
-      }
+      if (svgFrame.width > 0) svgFrame.rescale(targetW / svgFrame.width);
 
-      // Always unwrap the FrameNode wrapper — we only want the raw vectors.
-      for (const child of [...svgFrame.children]) {
-        child.x += svgFrame.x;
-        child.y += svgFrame.y;
-        parent.appendChild(child);
-      }
-      svgFrame.remove();
-    } catch {
-      // SVG parse failed — fall back to rasterized PNG if available, else placeholder
-      const imgBytes = svgImages[node.id];
-      if (imgBytes && imgBytes.length > 0) {
-        const image = figma.createImage(new Uint8Array(imgBytes));
-        const rect = figma.createRectangle();
-        rect.name = `svg · ${node.id}`;
-        rect.x = Math.round(relX);
-        rect.y = Math.round(relY);
-        rect.resize(Math.max(1, node.rect.width), Math.max(1, node.rect.height));
-        rect.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: image.hash }];
-        parent.appendChild(rect);
+      const isMaskIcon = node.tag !== 'svg';
+      const isInlineIcon = node.tag === 'svg' && ICON_PARENT_TAGS.has(parentTag);
+
+      if (isMaskIcon) {
+        // Mask-image icon: append whole frame into parent, then paint vectors in-place
+        const maskColor = parseColor(node.computedStyles['background-color'] || node.computedStyles['color'] || '') ?? { r: 0, g: 0, b: 0, a: 1 };
+        svgFrame.name = `svg · ${node.id}`;
+        svgFrame.x = Math.round(relX);
+        svgFrame.y = Math.round(relY);
+        parent.appendChild(svgFrame);
+        paintVectors(svgFrame, maskColor);
+      } else if (isInlineIcon) {
+        // Inline SVG inside a/span/button: apply parent text color as stroke
+        const iconColor = parseColor(effective['color'] || '') ?? undefined;
+        extractVectors(svgFrame, parent, Math.round(relX), Math.round(relY), iconColor);
       } else {
-        const frame = figma.createFrame();
-        frame.name = `svg · ${node.id}`;
-        frame.x = Math.round(relX);
-        frame.y = Math.round(relY);
-        frame.resize(Math.max(1, node.rect.width), Math.max(1, node.rect.height));
-        frame.fills = [];
-        parent.appendChild(frame);
+        // Illustration: keep the full SVG frame structure intact
+        svgFrame.name = `svg · ${node.id}`;
+        svgFrame.x = Math.round(relX);
+        svgFrame.y = Math.round(relY);
+        parent.appendChild(svgFrame);
       }
+    } catch {
+      const frame = figma.createFrame();
+      frame.name = `svg · ${node.id}`;
+      frame.x = Math.round(relX);
+      frame.y = Math.round(relY);
+      frame.resize(Math.max(1, node.rect.width), Math.max(1, node.rect.height));
+      frame.fills = [];
+      parent.appendChild(frame);
     }
   } else if (isTextNode(node)) {
     const textNode = figma.createText();
@@ -125,7 +161,7 @@ async function walkTree(
     applyFrameProperties(frame, node, relX, relY, warnings);
 
     for (const child of node.children) {
-      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, svgImages, effective, node.tag);
+      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, effective, node.tag);
     }
 
     parent.appendChild(frame);
@@ -171,7 +207,7 @@ export async function buildCapture(capture: Capture, options: BuildOptions): Pro
   rootFrame.clipsContent = true;
 
   // The tree root is the <html> element; position it relative to the viewport (0,0)
-  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress, options.svgImages);
+  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress);
 
   page.appendChild(rootFrame);
   figma.currentPage.selection = [rootFrame];

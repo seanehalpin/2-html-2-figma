@@ -167,9 +167,13 @@ export function applyFrameProperties(
   const opacity = parseFloat(node.computedStyles['opacity'] || '1');
   if (!isNaN(opacity) && opacity < 1) frame.opacity = opacity;
 
-  // Overflow / clip
+  // Overflow / clip — also required when a shadow has spread (Figma needs it to render)
   const clips = new Set(['hidden', 'clip', 'scroll', 'auto']);
+  const hasSpread = effects.some(e =>
+    (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && (e as DropShadowEffect).spread
+  );
   frame.clipsContent =
+    hasSpread ||
     clips.has(node.computedStyles['overflow-x'] || '') ||
     clips.has(node.computedStyles['overflow-y'] || '');
 }

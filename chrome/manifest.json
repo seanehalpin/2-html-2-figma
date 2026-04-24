@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "DOM Extractor",
+  "name": "Yoink!",
   "version": "0.1.0",
   "description": "Extract DOM, computed styles, and layout data from any page for Figma reconstruction.",
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "DOM Extractor"
+    "default_title": "Yoink!"
   },
   "background": {
     "service_worker": "src/background/index.ts",

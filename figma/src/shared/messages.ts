@@ -14,7 +14,7 @@ export interface BuildResult {
 }
 
 export type UIToPlugin =
-  | { type: 'build-request'; capture: Capture; simplify: boolean; svgImages: Record<string, number[]> }
+  | { type: 'build-request'; capture: Capture; simplify: boolean }
   | { type: 'cancel' };
 
 export type PluginToUI =

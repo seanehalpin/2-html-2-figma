@@ -48,54 +48,11 @@
     }
   }
 
-  async function rasterizeSvg(node: Capture['tree']): Promise<[string, number[]] | null> {
-    if (!node.svgData) return null;
-    const { width, height } = node.rect;
-    if (width <= 0 || height <= 0) return null;
-    try {
-      const blob = new Blob([node.svgData], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = url;
-      });
-      URL.revokeObjectURL(url);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(width * 2);
-      canvas.height = Math.ceil(height * 2);
-      const ctx = canvas.getContext('2d')!;
-      ctx.scale(2, 2);
-      ctx.drawImage(img, 0, 0, width, height);
-      const pngBlob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
-      const bytes = Array.from(new Uint8Array(await pngBlob.arrayBuffer()));
-      return [node.id, bytes];
-    } catch {
-      return null;
-    }
-  }
-
-  async function collectSvgImages(tree: Capture['tree']): Promise<Record<string, number[]>> {
-    const svgNodes: Capture['tree'][] = [];
-    function walk(n: Capture['tree']) {
-      if (n.svgData !== undefined) svgNodes.push(n);
-      for (const c of n.children) walk(c);
-    }
-    walk(tree);
-    const results = await Promise.all(svgNodes.map(rasterizeSvg));
-    const out: Record<string, number[]> = {};
-    for (const r of results) { if (r) out[r[0]] = r[1]; }
-    return out;
-  }
-
-  async function build() {
+  function build() {
     if (state.name !== 'loaded') return;
     const capture = $state.snapshot(state.capture) as Capture;
-    state = { name: 'building', current: 0, total: 1, phase: 'Rasterizing SVGs' };
-    const svgImages = await collectSvgImages(capture.tree);
     state = { name: 'building', current: 0, total: 1, phase: 'Loading fonts' };
-    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify, svgImages } }, '*');
+    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify } }, '*');
   }
 
   window.addEventListener('message', (event: MessageEvent) => {
