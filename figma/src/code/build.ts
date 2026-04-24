@@ -80,7 +80,9 @@ export interface BuildOptions {
 }
 
 function isTextNode(node: CapturedNode): boolean {
-  return node.tag === '#text' || (node.textContent !== undefined && node.children.length === 0);
+  return node.tag === '#text' ||
+    (node.textContent !== undefined && node.children.length === 0) ||
+    (node.textRuns !== undefined && node.children.length === 0);
 }
 
 // CSS properties that cascade down to child text nodes.

@@ -54,29 +54,52 @@ export function applyTextProperties(
   text.resize(Math.max(1, Math.ceil(node.rect.width * 1.1)), Math.max(1, node.rect.height));
   text.textAutoResize = 'HEIGHT';
 
-  // Font — must be set before characters
+  // Base font — must be set before characters
   const fontName = resolveFont(cs, fontMap);
   text.fontName = fontName;
   text.fontSize = fontSize;
 
-  // Characters
-  text.characters = node.textContent || '';
+  if (node.textRuns && node.textRuns.length > 0) {
+    text.characters = node.textRuns.map(r => r.text).join('');
 
-  // Line height
+    let offset = 0;
+    for (const run of node.textRuns) {
+      const len = run.text.length;
+      if (len === 0) { offset += len; continue; }
+      const start = offset;
+      const end = offset + len;
+      const rcs = run.computedStyles;
+      const runFontSize = px(rcs['font-size'], fontSize);
+
+      text.setRangeFontName(start, end, resolveFont(rcs, fontMap));
+      text.setRangeFontSize(start, end, runFontSize);
+      text.setRangeLetterSpacing(start, end, parseLetterSpacing(rcs['letter-spacing'], runFontSize));
+
+      const runColor = parseColor(rcs['color'] || '');
+      if (runColor) {
+        text.setRangeFills(start, end, [{ type: 'SOLID', color: { r: runColor.r, g: runColor.g, b: runColor.b }, opacity: runColor.a }]);
+      }
+
+      const deco = rcs['text-decoration'] || '';
+      if (deco.includes('underline')) text.setRangeTextDecoration(start, end, 'UNDERLINE');
+      else if (deco.includes('line-through')) text.setRangeTextDecoration(start, end, 'STRIKETHROUGH');
+
+      offset += len;
+    }
+  } else {
+    text.characters = node.textContent || '';
+    text.letterSpacing = parseLetterSpacing(cs['letter-spacing'], fontSize);
+
+    const color = parseColor(cs['color'] || '');
+    if (color) {
+      text.fills = [{ type: 'SOLID', color: { r: color.r, g: color.g, b: color.b }, opacity: color.a }];
+    }
+  }
+
+  // Line height and alignment apply to the whole node
   text.lineHeight = parseLineHeight(cs['line-height'], fontSize);
-
-  // Letter spacing
-  text.letterSpacing = parseLetterSpacing(cs['letter-spacing'], fontSize);
-
-  // Text align
   const align = ALIGN_MAP[cs['text-align'] || 'left'];
   if (align) text.textAlignHorizontal = align;
-
-  // Color fill
-  const color = parseColor(cs['color'] || '', cs['color']);
-  if (color) {
-    text.fills = [{ type: 'SOLID', color: { r: color.r, g: color.g, b: color.b }, opacity: color.a }];
-  }
 
   // Opacity
   const opacity = parseFloat(cs['opacity'] || '1');

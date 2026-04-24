@@ -1,9 +1,15 @@
+export interface TextRun {
+  text: string;
+  computedStyles: Record<string, string>;
+}
+
 export interface CapturedNode {
   id: string;
   tag: string;
   role?: string;
   dataComponent?: string;
   textContent?: string;
+  textRuns?: TextRun[];
   svgData?: string;
   rect: { x: number; y: number; width: number; height: number };
   computedStyles: Record<string, string>;

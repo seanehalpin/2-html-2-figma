@@ -191,6 +191,7 @@ function getComputedStylesFiltered(el: Element): Record<string, string> {
 
 function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean {
   if (SKIP_TAGS.has(el.tagName.toLowerCase())) return true;
+  if (el.getAttribute('data-expanded') === 'false') return true;
   if (cs.display === 'none') return true;
   if (cs.visibility === 'hidden') return true;
   // "Visually hidden" accessibility pattern — clip: rect(0,0,0,0) or clip-path: inset(50%).
@@ -261,19 +262,43 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
   }
 
   const childNodes = Array.from(el.childNodes);
-  const hasElementChildren = childNodes.some(n => n.nodeType === Node.ELEMENT_NODE);
+  // Inline formatting tags — transparent text wrappers, not block children.
+  const INLINE_TAGS = new Set(['strong', 'em', 'b', 'i', 'u', 's', 'code', 'mark', 'cite', 'small', 'abbr', 'time']);
+  const hasBlockChildren = childNodes.some(n =>
+    n.nodeType === Node.ELEMENT_NODE &&
+    !INLINE_TAGS.has((n as Element).tagName.toLowerCase())
+  );
 
   let textContent: string | undefined;
+  let textRuns: { text: string; computedStyles: Record<string, string> }[] | undefined;
   const children: CapturedNode[] = [];
 
-  if (!hasElementChildren) {
-    // Leaf: collapse all text nodes into the parent's textContent field.
-    const text = childNodes
-      .filter(n => n.nodeType === Node.TEXT_NODE)
-      .map(n => n.textContent ?? '')
-      .join('')
-      .trim();
-    if (text) textContent = text;
+  if (!hasBlockChildren) {
+    const hasInlineEls = childNodes.some(n =>
+      n.nodeType === Node.ELEMENT_NODE &&
+      INLINE_TAGS.has((n as Element).tagName.toLowerCase())
+    );
+
+    if (hasInlineEls) {
+      // Build runs: each text node and inline element becomes a styled segment.
+      const runs: { text: string; computedStyles: Record<string, string> }[] = [];
+      for (const child of childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const t = child.textContent ?? '';
+          if (t.trim()) runs.push({ text: t, computedStyles });
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const childEl = child as Element;
+          if (INLINE_TAGS.has(childEl.tagName.toLowerCase())) {
+            const t = childEl.textContent ?? '';
+            if (t) runs.push({ text: t, computedStyles: getComputedStylesFiltered(childEl) });
+          }
+        }
+      }
+      if (runs.length > 0) textRuns = runs;
+    } else {
+      const text = el.textContent?.trim() ?? '';
+      if (text) textContent = text;
+    }
   } else {
     // Mixed or element-only: walk children, promote inline text nodes to #text entries.
     for (const child of childNodes) {
@@ -313,6 +338,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
     ...(role !== undefined && { role }),
     ...(dataComponent !== undefined && { dataComponent }),
     ...(textContent !== undefined && { textContent }),
+    ...(textRuns !== undefined && { textRuns }),
     rect: capturedRect,
     computedStyles,
     originalDeclarations,

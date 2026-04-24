@@ -49,14 +49,21 @@ export function cssWeightToFigmaStyle(weight: string, italic: boolean): string {
 /** Walk the tree and collect unique (family, style) combinations from text nodes. */
 export function collectFontIds(node: CapturedNode): Set<string> {
   const ids = new Set<string>();
-  const isText = node.tag === '#text' || (node.textContent !== undefined && node.children.length === 0);
+  const isText = node.tag === '#text' ||
+    (node.textContent !== undefined && node.children.length === 0) ||
+    (node.textRuns !== undefined && node.children.length === 0);
 
   if (isText) {
-    const family = parseFontFamily(node.computedStyles['font-family'] || 'Inter');
-    const weight = node.computedStyles['font-weight'] || '400';
-    const italic = (node.computedStyles['font-style'] || '').includes('italic');
-    const style = cssWeightToFigmaStyle(weight, italic);
-    ids.add(fontKey(family, style));
+    const addFont = (cs: Record<string, string>) => {
+      const family = parseFontFamily(cs['font-family'] || 'Inter');
+      const weight = cs['font-weight'] || '400';
+      const italic = (cs['font-style'] || '').includes('italic');
+      ids.add(fontKey(family, cssWeightToFigmaStyle(weight, italic)));
+    };
+    addFont(node.computedStyles);
+    if (node.textRuns) {
+      for (const run of node.textRuns) addFont(run.computedStyles);
+    }
   }
 
   for (const child of node.children) {
