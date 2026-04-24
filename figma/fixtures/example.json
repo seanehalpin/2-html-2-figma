@@ -1,0 +1,150 @@
+{
+  "_note": "Hand-crafted test fixture — 15 nodes. Covers: frame fills, border-radius, box-shadow, typography, nested cards, buttons.",
+  "url": "https://example.com/",
+  "title": "Example Page",
+  "capturedAt": "2026-04-24T10:00:00.000Z",
+  "viewport": { "requestedWidth": 1440, "actualWidth": 1440, "actualHeight": 900, "devicePixelRatio": 2 },
+  "rootFontSize": 16,
+  "cssCustomProperties": { "--color-brand": "#18a0fb", "--radius-card": "12px" },
+  "fonts": [],
+  "warnings": [],
+  "tree": {
+    "id": "n-0", "tag": "html", "rect": { "x": 0, "y": 0, "width": 1440, "height": 900 },
+    "computedStyles": { "display": "block", "background-color": "rgb(255,255,255)", "font-size": "16px" },
+    "originalDeclarations": [], "children": [
+      {
+        "id": "n-1", "tag": "body", "rect": { "x": 0, "y": 0, "width": 1440, "height": 900 },
+        "computedStyles": { "display": "block", "background-color": "rgb(245,245,245)", "font-family": "Inter, sans-serif", "font-size": "16px", "color": "rgb(17,17,17)" },
+        "originalDeclarations": [], "children": [
+          {
+            "id": "n-2", "tag": "header", "role": "banner",
+            "rect": { "x": 0, "y": 0, "width": 1440, "height": 72 },
+            "computedStyles": {
+              "display": "flex", "align-items": "center", "padding-left": "48px", "padding-right": "48px",
+              "background-color": "rgb(17,17,17)", "color": "rgb(255,255,255)",
+              "font-size": "16px", "font-family": "Inter, sans-serif"
+            },
+            "originalDeclarations": [
+              { "property": "background-color", "value": "var(--color-surface-inverse)", "important": false }
+            ],
+            "children": [
+              {
+                "id": "n-3", "tag": "h1", "role": "heading",
+                "rect": { "x": 48, "y": 20, "width": 220, "height": 32 },
+                "computedStyles": {
+                  "font-size": "22px", "font-weight": "700", "color": "rgb(255,255,255)",
+                  "font-family": "Inter, sans-serif", "line-height": "32px"
+                },
+                "originalDeclarations": [],
+                "textContent": "DOM Extractor", "children": []
+              }
+            ]
+          },
+          {
+            "id": "n-4", "tag": "main", "role": "main",
+            "rect": { "x": 0, "y": 72, "width": 1440, "height": 828 },
+            "computedStyles": {
+              "display": "flex", "flex-direction": "column", "align-items": "center",
+              "padding-top": "64px", "gap": "32px",
+              "background-color": "rgb(245,245,245)", "font-family": "Inter, sans-serif"
+            },
+            "originalDeclarations": [], "children": [
+              {
+                "id": "n-5", "tag": "h2", "role": "heading",
+                "rect": { "x": 520, "y": 136, "width": 400, "height": 44 },
+                "computedStyles": {
+                  "font-size": "32px", "font-weight": "700", "color": "rgb(17,17,17)",
+                  "font-family": "Inter, sans-serif", "text-align": "center", "line-height": "44px"
+                },
+                "originalDeclarations": [],
+                "textContent": "Capture any page for Figma", "children": []
+              },
+              {
+                "id": "n-6", "tag": "p",
+                "rect": { "x": 420, "y": 196, "width": 600, "height": 48 },
+                "computedStyles": {
+                  "font-size": "16px", "font-weight": "400", "color": "rgb(85,85,85)",
+                  "font-family": "Inter, sans-serif", "text-align": "center",
+                  "line-height": "24px"
+                },
+                "originalDeclarations": [],
+                "textContent": "Extract DOM structure, computed styles, and layout data — then reconstruct in Figma with one click.",
+                "children": []
+              },
+              {
+                "id": "n-7", "tag": "div",
+                "rect": { "x": 560, "y": 268, "width": 320, "height": 300 },
+                "computedStyles": {
+                  "display": "flex", "flex-direction": "column", "gap": "16px",
+                  "background-color": "rgb(255,255,255)",
+                  "border-top-left-radius": "12px", "border-top-right-radius": "12px",
+                  "border-bottom-right-radius": "12px", "border-bottom-left-radius": "12px",
+                  "box-shadow": "0px 4px 16px rgba(0,0,0,0.12)",
+                  "padding-top": "24px", "padding-right": "24px",
+                  "padding-bottom": "24px", "padding-left": "24px",
+                  "border-top-width": "1px", "border-right-width": "1px",
+                  "border-bottom-width": "1px", "border-left-width": "1px",
+                  "border-top-style": "solid", "border-top-color": "rgb(229,229,229)"
+                },
+                "originalDeclarations": [
+                  { "property": "border-radius", "value": "var(--radius-card)", "important": false },
+                  { "property": "box-shadow", "value": "0 4px 16px rgba(0,0,0,.12)", "important": false }
+                ],
+                "children": [
+                  {
+                    "id": "n-8", "tag": "h3", "role": "heading",
+                    "rect": { "x": 584, "y": 292, "width": 272, "height": 28 },
+                    "computedStyles": {
+                      "font-size": "18px", "font-weight": "600", "color": "rgb(17,17,17)",
+                      "font-family": "Inter, sans-serif", "line-height": "28px"
+                    },
+                    "originalDeclarations": [],
+                    "textContent": "Chrome Extension", "children": []
+                  },
+                  {
+                    "id": "n-9", "tag": "p",
+                    "rect": { "x": 584, "y": 332, "width": 272, "height": 72 },
+                    "computedStyles": {
+                      "font-size": "13px", "font-weight": "400", "color": "rgb(85,85,85)",
+                      "font-family": "Inter, sans-serif", "line-height": "20px"
+                    },
+                    "originalDeclarations": [],
+                    "textContent": "Extracts DOM nodes, computed styles, and layout rects from any page. Outputs a single JSON file.",
+                    "children": []
+                  },
+                  {
+                    "id": "n-10", "tag": "div",
+                    "rect": { "x": 584, "y": 428, "width": 130, "height": 40 },
+                    "computedStyles": {
+                      "display": "flex", "align-items": "center", "justify-content": "center",
+                      "background-color": "rgb(24,160,251)",
+                      "border-top-left-radius": "6px", "border-top-right-radius": "6px",
+                      "border-bottom-right-radius": "6px", "border-bottom-left-radius": "6px",
+                      "padding-top": "8px", "padding-bottom": "8px",
+                      "padding-left": "16px", "padding-right": "16px"
+                    },
+                    "originalDeclarations": [
+                      { "property": "background-color", "value": "var(--color-brand)", "important": false }
+                    ],
+                    "children": [
+                      {
+                        "id": "n-11", "tag": "#text",
+                        "rect": { "x": 603, "y": 438, "width": 92, "height": 20 },
+                        "computedStyles": {
+                          "font-size": "13px", "font-weight": "600", "color": "rgb(255,255,255)",
+                          "font-family": "Inter, sans-serif"
+                        },
+                        "originalDeclarations": [],
+                        "textContent": "Install Extension", "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

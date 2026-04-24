@@ -1,0 +1,184 @@
+{
+  "_note": "Hand-crafted representative capture of https://example.com at 1440px viewport. Screenshot field is a minimal placeholder — a real capture contains a full base64 PNG data URL.",
+  "url": "https://example.com/",
+  "title": "Example Domain",
+  "capturedAt": "2026-04-24T10:00:00.000Z",
+  "viewport": {
+    "requestedWidth": 1440,
+    "actualWidth": 1440,
+    "actualHeight": 900,
+    "devicePixelRatio": 2
+  },
+  "rootFontSize": 16,
+  "cssCustomProperties": {},
+  "fonts": [
+    {
+      "family": "Times New Roman",
+      "weight": "400",
+      "style": "normal",
+      "status": "loaded"
+    }
+  ],
+  "screenshot": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "warnings": [],
+  "tree": {
+    "id": "n-0",
+    "tag": "html",
+    "role": "document",
+    "rect": { "x": 0, "y": 0, "width": 1440, "height": 900 },
+    "computedStyles": {
+      "display": "block",
+      "font-family": "Times New Roman",
+      "font-size": "16px",
+      "color": "rgb(0, 0, 0)",
+      "background-color": "rgba(0, 0, 0, 0)",
+      "width": "1440px",
+      "height": "900px",
+      "margin-top": "0px",
+      "margin-right": "0px",
+      "margin-bottom": "0px",
+      "margin-left": "0px"
+    },
+    "originalDeclarations": [],
+    "children": [
+      {
+        "id": "n-1",
+        "tag": "body",
+        "rect": { "x": 8, "y": 8, "width": 1424, "height": 238 },
+        "computedStyles": {
+          "display": "block",
+          "font-family": "Times New Roman",
+          "font-size": "16px",
+          "color": "rgb(0, 0, 0)",
+          "background-color": "rgba(0, 0, 0, 0)",
+          "width": "1424px",
+          "margin-top": "8px",
+          "margin-right": "8px",
+          "margin-bottom": "8px",
+          "margin-left": "8px"
+        },
+        "originalDeclarations": [],
+        "children": [
+          {
+            "id": "n-2",
+            "tag": "div",
+            "rect": { "x": 8, "y": 8, "width": 600, "height": 238 },
+            "computedStyles": {
+              "display": "block",
+              "width": "600px",
+              "margin-top": "0px",
+              "margin-right": "auto",
+              "margin-bottom": "0px",
+              "margin-left": "auto",
+              "padding-top": "0px",
+              "padding-right": "0px",
+              "padding-bottom": "0px",
+              "padding-left": "0px",
+              "border-top-style": "none",
+              "border-top-color": "rgb(0, 0, 0)",
+              "background-color": "rgba(0, 0, 0, 0)"
+            },
+            "originalDeclarations": [
+              {
+                "property": "width",
+                "value": "600px",
+                "important": false
+              },
+              {
+                "property": "margin",
+                "value": "0 auto",
+                "important": false
+              },
+              {
+                "property": "padding",
+                "value": "0 0 50px 0",
+                "important": false
+              },
+              {
+                "property": "border-right",
+                "value": "1px dotted #ccc",
+                "important": false
+              },
+              {
+                "property": "border-left",
+                "value": "1px dotted #ccc",
+                "important": false
+              }
+            ],
+            "children": [
+              {
+                "id": "n-3",
+                "tag": "h1",
+                "role": "heading",
+                "rect": { "x": 8, "y": 24, "width": 600, "height": 48 },
+                "computedStyles": {
+                  "display": "block",
+                  "font-family": "Times New Roman",
+                  "font-size": "32px",
+                  "font-weight": "700",
+                  "line-height": "40px",
+                  "color": "rgb(0, 0, 0)",
+                  "margin-top": "21.44px",
+                  "margin-bottom": "21.44px"
+                },
+                "originalDeclarations": [],
+                "textContent": "Example Domain",
+                "children": []
+              },
+              {
+                "id": "n-4",
+                "tag": "p",
+                "rect": { "x": 8, "y": 94, "width": 600, "height": 56 },
+                "computedStyles": {
+                  "display": "block",
+                  "font-family": "Times New Roman",
+                  "font-size": "16px",
+                  "line-height": "20px",
+                  "color": "rgb(0, 0, 0)",
+                  "margin-top": "16px",
+                  "margin-bottom": "16px"
+                },
+                "originalDeclarations": [],
+                "textContent": "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
+                "children": []
+              },
+              {
+                "id": "n-5",
+                "tag": "p",
+                "rect": { "x": 8, "y": 166, "width": 600, "height": 24 },
+                "computedStyles": {
+                  "display": "block",
+                  "font-family": "Times New Roman",
+                  "font-size": "16px",
+                  "line-height": "20px",
+                  "color": "rgb(0, 0, 0)",
+                  "margin-top": "16px",
+                  "margin-bottom": "16px"
+                },
+                "originalDeclarations": [],
+                "children": [
+                  {
+                    "id": "n-6",
+                    "tag": "a",
+                    "role": "link",
+                    "rect": { "x": 8, "y": 166, "width": 158, "height": 20 },
+                    "computedStyles": {
+                      "display": "inline",
+                      "font-family": "Times New Roman",
+                      "font-size": "16px",
+                      "color": "rgb(0, 0, 238)",
+                      "text-decoration": "underline solid rgb(0, 0, 238)"
+                    },
+                    "originalDeclarations": [],
+                    "textContent": "More information...",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

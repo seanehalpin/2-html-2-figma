@@ -1,0 +1,8 @@
+{
+  "name": "Yoink",
+  "id": "dom-extractor-figma-importer",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/index.html",
+  "editorType": ["figma"]
+}
