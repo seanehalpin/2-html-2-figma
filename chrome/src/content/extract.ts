@@ -261,6 +261,18 @@ function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean
   if (clip === 'rect(0px,0px,0px,0px)' || clip === 'rect(0,0,0,0)') return true;
   const clipPath = cs.getPropertyValue('clip-path');
   if (clipPath === 'inset(50%)') return true;
+  // Canonical sr-only signature: 1×1 absolutely-positioned box with overflow hidden.
+  // Used by Bootstrap's .sr-only / .visually-hidden, Tailwind's .sr-only, MUI's
+  // .visuallyHidden, Google's .XuJrye, etc. to expose text only to assistive tech.
+  // We skip these even when textContent is present — otherwise screen-reader labels
+  // like "Navigation calendar" or weekday names render as real text in the output.
+  if (
+    rect.width <= 1 && rect.height <= 1 &&
+    cs.overflowX === 'hidden' && cs.overflowY === 'hidden' &&
+    cs.position === 'absolute'
+  ) {
+    return true;
+  }
   // Leaf elements with no visible area are purely decorative or injected off-screen.
   // Exception: preserve elements that carry text — they may be CSS-animated to 0-size
   // (e.g. collapsed flex items) but still represent real content.
