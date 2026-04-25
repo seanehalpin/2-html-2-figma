@@ -44,8 +44,17 @@ const SVG_PAINT_PROPS = ['fill', 'stroke', 'stroke-width', 'fill-opacity', 'stro
  * Figma's SVG parser has no access to page styles, so unresolved references render as black.
  */
 function serializeSvgWithComputedStyles(svgEl: Element): string {
-  const liveEls = [svgEl, ...Array.from(svgEl.querySelectorAll('*'))];
-  const clone = svgEl.cloneNode(true) as Element;
+  // Unwrap wrapper SVGs whose only element child is another <svg>. Some icon libraries
+  // emit this (outer viewBox 0 0 256 256 around an inner viewBox 0 0 16 16), and
+  // figma.createNodeFromSvg sizes the frame from the outer viewBox while leaving the
+  // inner content at its raw inner-viewBox extent — collapsing the icon to ~1px.
+  let rootEl = svgEl;
+  while (rootEl.children.length === 1 && rootEl.children[0].tagName.toLowerCase() === 'svg') {
+    rootEl = rootEl.children[0];
+  }
+
+  const liveEls = [rootEl, ...Array.from(rootEl.querySelectorAll('*'))];
+  const clone = rootEl.cloneNode(true) as Element;
   const cloneEls = [clone, ...Array.from(clone.querySelectorAll('*'))];
 
   for (let i = 0; i < liveEls.length; i++) {
