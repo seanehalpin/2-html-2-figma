@@ -21,7 +21,6 @@ export interface CapturedNode {
 }
 
 export interface Viewport {
-  requestedWidth: number;
   actualWidth: number;
   actualHeight: number;
   devicePixelRatio: number;
@@ -49,6 +48,6 @@ export interface Capture {
 export type CapturePayload = Omit<Capture, 'screenshot'>;
 
 export type Message =
-  | { type: 'capture-request'; viewportWidth: number }
+  | { type: 'capture-request' }
   | { type: 'capture-response'; payload: Capture }
   | { type: 'capture-error'; error: string };

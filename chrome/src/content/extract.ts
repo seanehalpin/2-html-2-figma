@@ -38,23 +38,39 @@ let nodeCounter = 0;
 
 const SVG_PAINT_PROPS = ['fill', 'stroke', 'stroke-width', 'fill-opacity', 'stroke-opacity', 'opacity', 'color', 'stop-color', 'stop-opacity'];
 
+// SVG metadata-only children that don't contribute to the rendered icon.
+const SVG_METADATA_TAGS = new Set(['title', 'desc', 'defs', 'metadata']);
+
+/**
+ * Walk past wrapper <svg> elements to the innermost svg that holds the actual
+ * icon geometry. Some icon libraries emit <svg viewBox="0 0 256 256"> wrapped
+ * around <svg viewBox="0 0 16 16"> (sometimes with sibling <title>/<defs>),
+ * and figma.createNodeFromSvg sizes the frame from the outer viewBox while
+ * leaving the inner content at its raw inner-viewBox extent — collapsing the
+ * icon to ~1px after rescaling. Treat the inner svg as the source of truth.
+ */
+function findInnermostSvg(svgEl: Element): Element {
+  let current = svgEl;
+  while (true) {
+    const contentChildren = Array.from(current.children).filter(
+      c => !SVG_METADATA_TAGS.has(c.tagName.toLowerCase()),
+    );
+    if (contentChildren.length === 1 && contentChildren[0].tagName.toLowerCase() === 'svg') {
+      current = contentChildren[0];
+    } else {
+      return current;
+    }
+  }
+}
+
 /**
  * Clone an SVG element and inline all computed paint values so CSS variables,
  * currentColor, and class-based colours are self-contained in the markup.
  * Figma's SVG parser has no access to page styles, so unresolved references render as black.
  */
 function serializeSvgWithComputedStyles(svgEl: Element): string {
-  // Unwrap wrapper SVGs whose only element child is another <svg>. Some icon libraries
-  // emit this (outer viewBox 0 0 256 256 around an inner viewBox 0 0 16 16), and
-  // figma.createNodeFromSvg sizes the frame from the outer viewBox while leaving the
-  // inner content at its raw inner-viewBox extent — collapsing the icon to ~1px.
-  let rootEl = svgEl;
-  while (rootEl.children.length === 1 && rootEl.children[0].tagName.toLowerCase() === 'svg') {
-    rootEl = rootEl.children[0];
-  }
-
-  const liveEls = [rootEl, ...Array.from(rootEl.querySelectorAll('*'))];
-  const clone = rootEl.cloneNode(true) as Element;
+  const liveEls = [svgEl, ...Array.from(svgEl.querySelectorAll('*'))];
+  const clone = svgEl.cloneNode(true) as Element;
   const cloneEls = [clone, ...Array.from(clone.querySelectorAll('*'))];
 
   for (let i = 0; i < liveEls.length; i++) {
@@ -270,19 +286,27 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
   // SVG: capture as an atomic leaf with computed paint values inlined so CSS variables
   // and currentColor are resolved — Figma has no access to page styles.
   if (tag === 'svg') {
-    // DOM rect can be 0 when a CSS transform collapses the parent (e.g. scaleX(0)).
-    // Fall back to the SVG's own width/height attributes for a sensible size.
+    // For wrapper-svg-of-svg patterns, the inner svg is the source of truth for both
+    // the markup (so figma.createNodeFromSvg picks up its real viewBox) and the rendered
+    // size (the outer wrapper's box may not reflect what the icon actually occupies).
+    const innerSvg = findInnermostSvg(el);
     let svgRect = capturedRect;
+    if (innerSvg !== el) {
+      const innerRect = makeRect(innerSvg.getBoundingClientRect());
+      if (innerRect.width >= 1 && innerRect.height >= 1) svgRect = innerRect;
+    }
+    // DOM rect can still be 0 when a CSS transform collapses the parent (e.g. scaleX(0)).
+    // Fall back to the inner SVG's own width/height attributes for a sensible size.
     if (svgRect.width < 1 || svgRect.height < 1) {
-      const attrW = parseFloat(el.getAttribute('width') || '0');
-      const attrH = parseFloat(el.getAttribute('height') || '0');
+      const attrW = parseFloat(innerSvg.getAttribute('width') || '0');
+      const attrH = parseFloat(innerSvg.getAttribute('height') || '0');
       if (attrW >= 1) svgRect = { ...svgRect, width: attrW };
       if (attrH >= 1) svgRect = { ...svgRect, height: attrH };
     }
     return {
       id,
       tag,
-      svgData: serializeSvgWithComputedStyles(el),
+      svgData: serializeSvgWithComputedStyles(innerSvg),
       rect: svgRect,
       computedStyles: getComputedStylesFiltered(el),
       originalDeclarations: getOriginalDeclarations(el, allRules),
@@ -451,7 +475,7 @@ function getFonts(): Capture['fonts'] {
   return result;
 }
 
-export async function extract(requestedWidth: number): Promise<CapturePayload> {
+export async function extract(): Promise<CapturePayload> {
   nodeCounter = 0;
   const warnings: string[] = [];
 
@@ -480,7 +504,6 @@ export async function extract(requestedWidth: number): Promise<CapturePayload> {
   const rootFontSize = parseFloat(window.getComputedStyle(rootEl).fontSize) || 16;
 
   const viewport: Viewport = {
-    requestedWidth,
     actualWidth: window.innerWidth,
     actualHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio,

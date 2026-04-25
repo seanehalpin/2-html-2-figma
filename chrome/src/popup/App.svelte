@@ -10,7 +10,6 @@
     | { status: 'done'; capture: Capture }
     | { status: 'error'; message: string };
 
-  let viewportWidth = $state(1440);
   let captureState = $state<CaptureState>({ status: 'idle' });
 
   function countNodes(node: Capture['tree']): number {
@@ -39,7 +38,6 @@
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'capture-request',
-        viewportWidth,
       });
 
       if (response?.type === 'capture-response') {
@@ -79,18 +77,6 @@
 <main class={styles.container}>
   <h1 class={styles.title}>DOM Extractor</h1>
 
-  <div class={styles.field}>
-    <label for="viewport-width" class={styles.label}>Target viewport width (px)</label>
-    <input
-      id="viewport-width"
-      type="number"
-      min="320"
-      max="3840"
-      bind:value={viewportWidth}
-      class={styles.input}
-    />
-  </div>
-
   <button
     class={styles.captureBtn}
     onclick={capture}
@@ -109,12 +95,6 @@
         </span>
       {/if}
     </div>
-
-    {#if captureState.capture.viewport.requestedWidth !== captureState.capture.viewport.actualWidth}
-      <p class={styles.viewportMismatch}>
-        Note: captured at {captureState.capture.viewport.actualWidth}px — resize your browser to {captureState.capture.viewport.requestedWidth}px before capturing for accurate results.
-      </p>
-    {/if}
 
     <div class={styles.actions}>
       <button class={styles.actionBtn} onclick={downloadJson}>Download JSON</button>
