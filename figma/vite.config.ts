@@ -12,11 +12,9 @@ const uiHtmlPath = resolve(__dirname, 'dist/index.html');
 function injectUiHtml(): Plugin {
   return {
     name: 'inject-ui-html',
-    buildStart() {
-      if (existsSync(uiHtmlPath)) this.addWatchFile(uiHtmlPath);
-    },
     transform(code, id) {
       if (!id.endsWith('src/code/index.ts')) return null;
+      this.addWatchFile(uiHtmlPath);
       if (!existsSync(uiHtmlPath)) {
         this.warn('dist/index.html not found — run build:ui first');
         return { code: code.replace(/__html__/g, '""'), map: null };
@@ -34,7 +32,16 @@ export default defineConfig(({ mode }) => {
       plugins: [svelte(), viteSingleFile()],
       build: {
         outDir: resolve(__dirname, 'dist'),
-        emptyOutDir: true,
+        emptyOutDir: false,
+        rollupOptions: {
+          onwarn(warning, warn) {
+            if (warning.code === 'INVALID_ANNOTATION') return;
+            warn(warning);
+          },
+        },
+      },
+      esbuild: {
+        logOverride: { 'js-comment-in-css': 'silent' },
       },
     };
   }

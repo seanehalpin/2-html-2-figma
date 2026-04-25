@@ -101,13 +101,13 @@ export function applyTextProperties(
   const align = ALIGN_MAP[cs['text-align'] || 'left'];
   if (align) text.textAlignHorizontal = align;
 
-  // Opacity
+  // Opacity — skip opacity:0 on text so visually-hidden-but-structural text still shows
   const opacity = parseFloat(cs['opacity'] || '1');
-  if (!isNaN(opacity) && opacity < 1) text.opacity = opacity;
+  if (!isNaN(opacity) && opacity < 1 && opacity > 0) text.opacity = opacity;
 
   // Warn about transforms — not applied to text in v1
   const transform = cs['transform'];
   if (transform && transform !== 'none') {
-    warnings.push({ level: 'warning', nodeId: node.id, message: `${node.id}: transform "${transform}" not applied` });
+    warnings.push({ level: 'warning', nodeId: text.id, message: `${node.id}: transform "${transform}" not applied` });
   }
 }

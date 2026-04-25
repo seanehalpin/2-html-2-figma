@@ -10,6 +10,19 @@ import { applyTextProperties } from './nodes/text';
 const ICON_PARENT_TAGS = new Set(['a', 'span', 'button']);
 const GEOMETRY_TYPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'ELLIPSE', 'POLYGON', 'RECTANGLE', 'LINE']);
 
+// After serializeSvgWithComputedStyles, all CSS vars and currentColor are resolved to real
+// RGB values. If an SVG has fill-opacity variations OR multiple distinct fill colors, it's an
+// illustration with intentional multi-color design — not a single-color icon to be recolored.
+function svgHasOwnColors(svgData: string): boolean {
+  const fills = [...svgData.matchAll(/\bfill="([^"]+)"/g)]
+    .map(m => m[1])
+    .filter(v => v !== 'none' && v !== 'inherit');
+  if (fills.length === 0) return false;
+  if (new Set(fills).size > 1) return true;
+  const opacities = [...svgData.matchAll(/\bfill-opacity="([^"]+)"/g)].map(m => m[1]);
+  return opacities.some(o => o !== '1' && o !== '');
+}
+
 /**
  * Recursively extract all leaf geometry nodes from an SVG-created node tree,
  * placing them directly in `target` at the correct absolute position.
@@ -32,16 +45,22 @@ function removeClipGroups(node: BaseNode): void {
 function paintVectors(
   node: SceneNode,
   color: { r: number; g: number; b: number; a: number },
+  iconMode: 'stroke' | 'fill',
 ): void {
   if (GEOMETRY_TYPES.has(node.type)) {
     const paint: SolidPaint = { type: 'SOLID', color: { r: color.r, g: color.g, b: color.b }, opacity: color.a };
-    (node as GeometryMixin).fills = [];
-    (node as GeometryMixin).strokes = [paint];
+    if (iconMode === 'stroke') {
+      (node as GeometryMixin).fills = [];
+      (node as GeometryMixin).strokes = [paint];
+    } else {
+      (node as GeometryMixin).strokes = [];
+      (node as GeometryMixin).fills = [paint];
+    }
     return;
   }
   if ('children' in node) {
     for (const child of (node as ChildrenMixin).children) {
-      paintVectors(child, color);
+      paintVectors(child, color, iconMode);
     }
   }
 }
@@ -51,6 +70,7 @@ function extractVectors(
   target: FrameNode | PageNode,
   dx: number,
   dy: number,
+  iconMode: 'stroke' | 'fill',
   iconColor?: { r: number; g: number; b: number; a: number },
 ): void {
   if (GEOMETRY_TYPES.has(node.type)) {
@@ -58,8 +78,13 @@ function extractVectors(
     node.y += dy;
     if (iconColor) {
       const paint: SolidPaint = { type: 'SOLID', color: { r: iconColor.r, g: iconColor.g, b: iconColor.b }, opacity: iconColor.a };
-      (node as GeometryMixin).fills = [];
-      (node as GeometryMixin).strokes = [paint];
+      if (iconMode === 'stroke') {
+        (node as GeometryMixin).fills = [];
+        (node as GeometryMixin).strokes = [paint];
+      } else {
+        (node as GeometryMixin).strokes = [];
+        (node as GeometryMixin).fills = [paint];
+      }
     }
     target.appendChild(node);
     return;
@@ -68,7 +93,7 @@ function extractVectors(
     const nx = 'x' in node ? (node as { x: number }).x : 0;
     const ny = 'y' in node ? (node as { y: number }).y : 0;
     for (const child of [...(node as ChildrenMixin).children]) {
-      extractVectors(child, target, dx + nx, dy + ny, iconColor);
+      extractVectors(child, target, dx + nx, dy + ny, iconMode, iconColor);
     }
     node.remove();
   }
@@ -76,6 +101,7 @@ function extractVectors(
 
 export interface BuildOptions {
   simplify: boolean;
+  iconMode: 'stroke' | 'fill';
   onProgress: (current: number, total: number, phase: string) => void;
 }
 
@@ -99,6 +125,7 @@ async function walkTree(
   warnings: BuildWarning[],
   counter: { n: number; total: number },
   onProgress: (current: number, total: number, phase: string) => void,
+  iconMode: 'stroke' | 'fill',
   inherited: Record<string, string> = {},
   parentTag = '',
 ): Promise<void> {
@@ -131,11 +158,17 @@ async function walkTree(
         svgFrame.x = Math.round(relX);
         svgFrame.y = Math.round(relY);
         parent.appendChild(svgFrame);
-        paintVectors(svgFrame, maskColor);
-      } else if (isInlineIcon) {
-        // Inline SVG inside a/span/button: apply parent text color as stroke
+        paintVectors(svgFrame, maskColor, iconMode);
+      } else if (isInlineIcon && !svgHasOwnColors(node.svgData!)) {
+        // Inline SVG monochrome icon: recolor with parent text color
         const iconColor = parseColor(effective['color'] || '') ?? undefined;
-        extractVectors(svgFrame, parent, Math.round(relX), Math.round(relY), iconColor);
+        extractVectors(svgFrame, parent, Math.round(relX), Math.round(relY), iconMode, iconColor);
+      } else if (isInlineIcon) {
+        // Inline SVG with its own colors: preserve as-is
+        svgFrame.name = `svg · ${node.id}`;
+        svgFrame.x = Math.round(relX);
+        svgFrame.y = Math.round(relY);
+        parent.appendChild(svgFrame);
       } else {
         // Illustration: keep the full SVG frame structure intact
         svgFrame.name = `svg · ${node.id}`;
@@ -156,14 +189,29 @@ async function walkTree(
     const textNode = figma.createText();
     // Merge node's own styles on top of inherited so text always has correct color/font.
     const nodeWithInherited: CapturedNode = { ...node, computedStyles: effective };
-    applyTextProperties(textNode, nodeWithInherited, relX, relY, fontMap, warnings);
-    parent.appendChild(textNode);
+
+    if (node.tag !== '#text') {
+      // Element node (e.g. <a>, <span>) collapsed to text: wrap in a frame so the
+      // element's actual height (which may exceed the text's line-height) is preserved.
+      const frame = figma.createFrame();
+      applyFrameProperties(frame, node, relX, relY, warnings);
+      applyTextProperties(textNode, nodeWithInherited, 0, 0, fontMap, warnings);
+      frame.appendChild(textNode);
+      // Vertically center the text within the frame
+      if (textNode.height < frame.height) {
+        textNode.y = Math.round((frame.height - textNode.height) / 2);
+      }
+      parent.appendChild(frame);
+    } else {
+      applyTextProperties(textNode, nodeWithInherited, relX, relY, fontMap, warnings);
+      parent.appendChild(textNode);
+    }
   } else {
     const frame = figma.createFrame();
     applyFrameProperties(frame, node, relX, relY, warnings);
 
     for (const child of node.children) {
-      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, effective, node.tag);
+      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, iconMode, effective, node.tag);
     }
 
     parent.appendChild(frame);
@@ -209,7 +257,7 @@ export async function buildCapture(capture: Capture, options: BuildOptions): Pro
   rootFrame.clipsContent = true;
 
   // The tree root is the <html> element; position it relative to the viewport (0,0)
-  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress);
+  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress, options.iconMode);
 
   page.appendChild(rootFrame);
   figma.currentPage.selection = [rootFrame];

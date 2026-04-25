@@ -1,0 +1,184 @@
+@use "mixins";
+
+:root {
+  --font-inter: "Inter", Inter, system-ui, sans-serif;
+
+  --zindex-base: -1;
+  --zindex-modal: 1000;
+  --zindex-modal-base: 900;
+  --zindex-1: 1;
+  --zindex-2: 2;
+  --zindex-3: 3;
+  --zindex-top: 100;
+
+  --color-primary: #191918;
+  --color-white: #fff;
+  --color-primary-inverse: var(--color-white);
+  
+  --color-placeholder: rgba(240, 240, 240, 1);
+  --color-placeholder-inverse: rgba(255,255,255,0.1);
+
+  --color-bg: #F5F5F5;
+  --color-border: rgba(0,0,0,0.1);
+  --color-border-inverse: rgba(255,255,255,0.2);
+  --color-border-2: rgba(0,0,0,0.2);
+  --color-border-inverse-2: rgba(255,255,255,0.3);
+  --color-border-button: rgba(25, 25, 24, 0.2);
+  --color-border-button-inverse: rgba(255,255,255,0.3);
+  
+  --radius-base: 5px;
+  --radius-lg: 15px;
+  --space-s: 16px;
+
+  --font-size-xsmall: 11px;
+  --font-size-small: 12px;
+  --font-size-large: 13px;
+  --font-size-xlarge: 14px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+  --font-line-height: 16px;
+  --font-line-height-large: 24px;
+  --font-letter-spacing-pos-xsmall: .005em;
+  --font-letter-spacing-neg-xsmall: .01em;
+  --font-letter-spacing-pos-small: 0;
+  --font-letter-spacing-neg-small: .005em;
+  --font-letter-spacing-pos-large: -.0025em;
+  --font-letter-spacing-neg-large: .0025em;
+  --font-letter-spacing-pos-xlarge: -.001em;
+  --font-letter-spacing-neg-xlarge: -.001em;
+  --border-radius-small: 2px;
+  --border-radius-med: 5px;
+  --border-radius-large: 6px;
+  --shadow-hud: 0 5px 17px rgba(0,0,0,.2),0 2px 7px rgba(0,0,0,.15);
+  --shadow-floating-window: 0 2px 14px rgba(0,0,0,.15);
+
+  --2px: 0.125rem;
+  --4px: 0.25rem;
+  --6px: 0.375rem;
+  --8px: 0.5rem;
+  --10px: 0.625rem;
+  --11px: 0.6875rem;
+  --12px: 0.75rem;
+  --14px: 0.875rem;
+  --15px: 0.9375rem;
+  --16px: 1rem;
+  --17px: 1.0625rem;
+  --18px: 1.125rem;
+  --19px: 1.1875rem;
+  --20px: 1.25rem;
+  --21px: 1.3125rem;
+  --22px: 1.375rem;
+  --24px: 1.5rem;
+  --28px: 1.75rem;
+  --30px : 1.875rem;
+  --32px: 2rem;
+  --40px: 2.5rem;
+  --42px: 2.652rem;
+  --48px: 3rem;
+  --64px: 4rem;
+  --96px: 6rem;
+  --112px: 7rem;
+  --128px: 8rem;
+  --144px: 9rem;
+
+  --font-base: var(--16px);
+
+  --ds-primary: #8D75E6;
+  --ds-primary75: #8D75E6BF;
+  --ds-primary56: #8D75E68F;
+  --ds-primary40: #8D75E666;
+  --ds-primary16: #8D75E629;
+  --ds-primary08: #8D75E614;
+  --ds-primaryDark: #6956A8;
+  --ds-blue: #4BBFFF;
+  --ds-blue75: #4BBFFFBF;
+  --ds-blue56: #4BBFFF8F;
+  --ds-blue40: #4BBFFF66;
+  --ds-blue16: #4BBFFF29;
+  --ds-blue08: #4BBFFF14;
+  --ds-blueDark: #1F6280;
+  --ds-gold: #FABE25;
+  --ds-gold75: #FABE25BF;
+  --ds-gold56: #FABE258F;
+  --ds-gold40: #FABE2566;
+  --ds-gold16: #FABE2529;
+  --ds-gold08: #FABE2514;
+  --ds-goldDark: #795400;
+  --ds-green: #6DD888;
+  --ds-green75: #6DD888BF;
+  --ds-green56: #6DD8888F;
+  --ds-green40: #6DD88866;
+  --ds-green16: #6DD88829;
+  --ds-green08: #6DD88814;
+  --ds-greenDark: #24772E;
+  --ds-indigo: #6677FF;
+  --ds-indigo75: #6677FFBF;
+  --ds-indigo56: #6677FF8F;
+  --ds-indigo40: #6677FF66;
+  --ds-indigo16: #6677FF29;
+  --ds-indigo08: #6677FF14;
+  --ds-indigoDark: #2A3D8F;
+  --ds-magenta: #DF99FF;
+  --ds-magenta75: #DF99FFBF;
+  --ds-magenta56: #DF99FF8F;
+  --ds-magenta40: #DF99FF66;
+  --ds-magenta16: #DF99FF29;
+  --ds-magenta08: #DF99FF14;
+  --ds-magentaDark: #7B429B;
+  --ds-mint: #4DDBBB;
+  --ds-mint75: #4DDBBBBF;
+  --ds-mint56: #4DDBBB8F;
+  --ds-mint40: #4DDBBB66;
+  --ds-mint16: #4DDBBB29;
+  --ds-mint08: #4DDBBB14;
+  --ds-mintDark: #1D6A59;
+  --ds-orange: #FAA666;
+  --ds-orange75: #FAA666BF;
+  --ds-orange56: #FAA6668F;
+  --ds-orange40: #FAA66666;
+  --ds-orange16: #FAA66629;
+  --ds-orange08: #FAA66614;
+  --ds-orangeDark: #7A4C2E;
+  --ds-red: #FF8888;
+  --ds-red75: #FF8888BF;
+  --ds-red56: #FF88888F;
+  --ds-red50: #FF5555;
+  --ds-red40: #FF888866;
+  --ds-red16: #FF888829;
+  --ds-red08: #FF888814;
+  --ds-redDark: #963D3D;
+  --ds-slate: #0D0D0D;
+  --ds-slate75: #141414BF;
+  --ds-slate56: #1414148F;
+  --ds-slate40: #14141466;
+  --ds-slate16: #14141429;
+  --ds-slate08: #14141414;
+  --ds-slate04: #1414140A;
+  --ds-slateLight: #FFFFFF;
+  --ds-slateDark: #0D0D0D;
+
+  --ds-slateinvert40: rgba(255, 255, 255, 0.4);
+
+  --deck-gradient-gold: linear-gradient(180deg, var(--ds-gold) 0%, var(--ds-goldDark) 100%);
+  --deck-box: 0px 4px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 5px rgba(255, 255, 255, 0.25) inset;
+  --deck-box-gold: 0 0 0 1px #AB7A09;
+
+  --color-rainbow: conic-gradient(from 90deg at 50% 50%,#e164ef 0deg,#1fc8ff 72.0000010728836deg,#b6ff95 144.0000021457672deg,#fdf186 216.00000858306885deg,#f4bb40 288.0000042915344deg,#e164ef 360deg);
+
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow-x: hidden;
+  color: var(--figma-color-text);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: var(--11px);
+  padding: var(--20px) !important;
+  background: var(--figma-color-bg);
+}

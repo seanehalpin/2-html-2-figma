@@ -201,8 +201,11 @@ function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean
   const clipPath = cs.getPropertyValue('clip-path');
   if (clipPath === 'inset(50%)') return true;
   // Leaf elements with no visible area are purely decorative or injected off-screen.
+  // Exception: preserve elements that carry text — they may be CSS-animated to 0-size
+  // (e.g. collapsed flex items) but still represent real content.
   const hasElementChildren = Array.from(el.childNodes).some(n => n.nodeType === Node.ELEMENT_NODE);
-  if (!hasElementChildren && rect.width <= 1 && rect.height <= 1) return true;
+  const hasTextContent = !!el.textContent?.trim();
+  if (!hasElementChildren && !hasTextContent && rect.width <= 1 && rect.height <= 1) return true;
   return false;
 }
 
@@ -222,11 +225,20 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
   // SVG: capture as an atomic leaf with computed paint values inlined so CSS variables
   // and currentColor are resolved — Figma has no access to page styles.
   if (tag === 'svg') {
+    // DOM rect can be 0 when a CSS transform collapses the parent (e.g. scaleX(0)).
+    // Fall back to the SVG's own width/height attributes for a sensible size.
+    let svgRect = capturedRect;
+    if (svgRect.width < 1 || svgRect.height < 1) {
+      const attrW = parseFloat(el.getAttribute('width') || '0');
+      const attrH = parseFloat(el.getAttribute('height') || '0');
+      if (attrW >= 1) svgRect = { ...svgRect, width: attrW };
+      if (attrH >= 1) svgRect = { ...svgRect, height: attrH };
+    }
     return {
       id,
       tag,
       svgData: serializeSvgWithComputedStyles(el),
-      rect: capturedRect,
+      rect: svgRect,
       computedStyles: getComputedStylesFiltered(el),
       originalDeclarations: getOriginalDeclarations(el, allRules),
       children: [],

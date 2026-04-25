@@ -14,7 +14,8 @@ export interface BuildResult {
 }
 
 export type UIToPlugin =
-  | { type: 'build-request'; capture: Capture; simplify: boolean }
+  | { type: 'build-request'; capture: Capture; simplify: boolean; iconMode: 'stroke' | 'fill' }
+  | { type: 'select-node'; nodeId: string }
   | { type: 'cancel' };
 
 export type PluginToUI =

@@ -1,6 +1,8 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import * as T from 'teenoo';
+  import IconUpload from './IconUpload.svelte';
   const { onFile }: { onFile: (file: File) => void } = $props();
 
   let dragging = $state(false);
@@ -19,48 +21,59 @@
   }
 </script>
 
-<div
-  class="zone"
-  class:dragging
-  role="button"
-  tabindex="0"
-  aria-label="Drop capture JSON here or click to browse"
-  ondragover={(e) => { e.preventDefault(); dragging = true; }}
-  ondragleave={() => { dragging = false; }}
-  ondrop={handleDrop}
-  onclick={() => inputRef.click()}
-  onkeydown={(e) => e.key === 'Enter' && inputRef.click()}
->
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M8 12l4-4 4 4M12 8v8" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-  <p class="label">Drop <code>.json</code> capture here</p>
-  <p class="sub">or click to browse</p>
-  <input bind:this={inputRef} type="file" accept=".json,application/json" onchange={handleChange} />
+<div class="box">
+  <div
+    class="zone"
+    class:dragging
+    role="button"
+    tabindex="0"
+    aria-label="Drop capture JSON here or click to browse"
+    ondragover={(e) => { e.preventDefault(); dragging = true; }}
+    ondragleave={() => { dragging = false; }}
+    ondrop={handleDrop}
+    onclick={() => inputRef.click()}
+    onkeydown={(e) => e.key === 'Enter' && inputRef.click()}
+  >
+    <div class="icon">
+      <IconUpload />
+    </div>
+    <T.Text regular strong>Drop JSON capture here</T.Text>
+    <T.Text small>or click to browse</T.Text>
+    <input bind:this={inputRef} type="file" accept=".json,application/json" onchange={handleChange} />
+  </div>
 </div>
 
-<style>
+
+
+<style lang="scss">
+
+  .box {
+    position: relative;
+  }
+
   .zone {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    border: 1.5px dashed #ccc;
+    gap: 12px;
+    border: 1px dashed var(--figma-color-border);
     border-radius: 8px;
     padding: 28px 16px;
     cursor: pointer;
-    color: #888;
+    height: calc(100vh - 40px);
+    color: var(--figma-color-text);
     transition: border-color 0.15s, color 0.15s, background 0.15s;
     user-select: none;
   }
   .zone:hover, .zone.dragging {
-    border-color: #18a0fb;
-    color: #18a0fb;
-    background: #f0f8ff;
+    border-color: var(--figma-color-bg-brand);
+    color: var(--figma-color-bg-brand);
+    background: var(--figma-color-bg-brand-tertiary);
   }
-  .label { margin: 0; font-size: 13px; font-weight: 500; }
-  .sub   { margin: 0; font-size: 11px; }
-  input  { display: none; }
-  svg    { opacity: 0.7; }
+  input { display: none; }
+  code {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+  }
 </style>

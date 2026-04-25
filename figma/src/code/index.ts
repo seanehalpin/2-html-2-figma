@@ -1,7 +1,7 @@
 import type { UIToPlugin, PluginToUI } from '../shared/messages';
 import { buildCapture } from './build';
 
-figma.showUI(__html__, { width: 360, height: 480, title: 'DOM Extractor' });
+figma.showUI(__html__, { width: 360, height: 480, themeColors: true });
 
 function send(msg: PluginToUI): void {
   figma.ui.postMessage(msg);
@@ -13,11 +13,21 @@ figma.ui.onmessage = async (raw: UIToPlugin) => {
     return;
   }
 
+  if (raw.type === 'select-node') {
+    const node = await figma.getNodeByIdAsync(raw.nodeId);
+    if (node && 'parent' in node) {
+      figma.currentPage.selection = [node as SceneNode];
+      figma.viewport.scrollAndZoomIntoView([node as SceneNode]);
+    }
+    return;
+  }
+
   if (raw.type !== 'build-request') return;
 
   try {
     const result = await buildCapture(raw.capture, {
       simplify: raw.simplify,
+      iconMode: raw.iconMode,
       onProgress(current, total, phase) {
         send({ type: 'progress', current, total, phase });
       },

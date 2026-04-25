@@ -7,17 +7,21 @@
     "build:ui": "vite build --mode ui",
     "build:code": "vite build --mode code",
     "build": "npm run build:ui && npm run build:code",
-    "dev": "npm run build && concurrently --names ui,code \"npm run build:ui -- --watch\" \"npm run build:code -- --watch\"",
+    "dev": "node scripts/dev.mjs",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
     "@figma/plugin-typings": "*",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "concurrently": "^8.0.0",
+    "sass": "^1.99.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
     "vite-plugin-singlefile": "^2.0.0"
+  },
+  "dependencies": {
+    "teenoo": "^0.0.54"
   }
 }

@@ -1,6 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import * as T from 'teenoo';
   import type { Capture } from '../../shared/capture-types';
 
   const { capture }: { capture: Capture } = $props();
@@ -13,31 +14,59 @@
   const capturedAt = $derived(new Date(capture.capturedAt).toLocaleString());
 </script>
 
+<div class="summary-holder">
 <div class="summary">
-  <div class="row"><span class="key">URL</span><span class="val url">{capture.url}</span></div>
-  <div class="row"><span class="key">Title</span><span class="val">{capture.title}</span></div>
-  <div class="row">
-    <span class="key">Viewport</span>
-    <span class="val">
-      {capture.viewport.actualWidth}×{capture.viewport.actualHeight}
-      {#if capture.viewport.requestedWidth !== capture.viewport.actualWidth}
-        <em class="mismatch">(target: {capture.viewport.requestedWidth}px)</em>
-      {/if}
-    </span>
-  </div>
-  <div class="row"><span class="key">Nodes</span><span class="val">{nodeCount.toLocaleString()}</span></div>
-  <div class="row"><span class="key">Captured</span><span class="val">{capturedAt}</span></div>
-  {#if capture.warnings.length > 0}
-    <div class="row"><span class="key">Warnings</span><span class="val warn">{capture.warnings.length}</span></div>
-  {/if}
+  {#each [
+    // { key: 'URL', val: capture.url, url: true },
+    { key: 'Title', val: capture.title ?? '—' },
+    { key: 'Viewport', val: `${capture.viewport.actualWidth}×${capture.viewport.actualHeight}` },
+    { key: 'Nodes', val: nodeCount.toLocaleString() },
+    { key: 'Captured', val: capturedAt },
+  ] as row}
+    <div class="row">
+      <T.Text small color="var(--figma-color-text-tertiary)" className="key">{row.key}</T.Text>
+      <T.Text small color="var(--figma-color-text)" className="val">{row.val}</T.Text>
+    </div>
+  {/each}
+  <!-- {#if capture.warnings.length > 0}
+    <div class="row">
+      <T.Text small color="var(--figma-color-text-tertiary)" className="key">Warnings</T.Text>
+      <T.Text small color="var(--figma-color-text-danger)" strong>{capture.warnings.length}</T.Text>
+    </div>
+  {/if} -->
+</div>
 </div>
 
-<style>
-  .summary { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-  .row { display: flex; gap: 8px; }
-  .key { color: #888; width: 64px; flex-shrink: 0; padding-top: 1px; }
-  .val { color: #111; flex: 1; word-break: break-all; }
-  .url { color: #18a0fb; }
-  .warn { color: #f24822; font-weight: 500; }
-  .mismatch { font-style: normal; color: #f24822; font-size: 11px; }
+<style lang="scss">
+
+  .summary-holder {
+    padding: 0 0 var(--20px);
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--20px);
+  }
+  
+  .summary {
+    border: 1px solid var(--figma-color-border);
+    padding: var(--20px);
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--20px);
+    border-radius: var(--8px);
+  }
+
+  .row { 
+    display: flex; 
+    gap: 8px; 
+    align-items: flex-start; 
+  }
+
+  :global(.key) { 
+    width: 64px; flex-shrink: 0; 
+  }
+  :global(.val) { 
+    flex: 1; 
+    word-break: break-all; 
+  }
+
 </style>

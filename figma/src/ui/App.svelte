@@ -1,13 +1,13 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import * as T from 'teenoo';
   import type { Capture } from '../shared/capture-types';
   import type { PluginToUI, BuildResult } from '../shared/messages';
   import DropZone from './components/DropZone.svelte';
   import CaptureSummary from './components/CaptureSummary.svelte';
   import ProgressBar from './components/ProgressBar.svelte';
   import WarningsList from './components/WarningsList.svelte';
-  import styles from './styles.module.css';
 
   type Phase =
     | { name: 'idle' }
@@ -18,8 +18,8 @@
 
   let state = $state<Phase>({ name: 'idle' });
   let simplify = $state(true);
+  let iconMode = $state<'stroke' | 'fill'>('stroke');
 
-  // Validate that a parsed JSON object has the required Capture shape.
   function validate(obj: unknown): Capture {
     if (!obj || typeof obj !== 'object') throw new Error('Not a valid JSON object');
     const c = obj as Record<string, unknown>;
@@ -52,7 +52,7 @@
     if (state.name !== 'loaded') return;
     const capture = $state.snapshot(state.capture) as Capture;
     state = { name: 'building', current: 0, total: 1, phase: 'Loading fonts' };
-    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify } }, '*');
+    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify, iconMode } }, '*');
   }
 
   window.addEventListener('message', (event: MessageEvent) => {
@@ -69,55 +69,134 @@
   });
 </script>
 
-<main class={styles.container}>
-  <h1 class={styles.title}>Yoink</h1>
+  <!-- <T.Autolayout vertical gap="12px" padding="16px" fillWidth> -->
 
-  {#if state.name === 'idle'}
-    <DropZone {onFile} />
+    {#if state.name === 'idle'}
+      <DropZone {onFile} />
 
-  {:else if state.name === 'error'}
-    <div class={styles.errorBox}>
-      <strong>Error</strong>
-      <p>{state.message}</p>
-    </div>
-    <button class={styles.secondaryBtn} onclick={() => (state = { name: 'idle' })}>Try again</button>
+    {:else if state.name === 'error'}
+      <div class="error-box">
+        <T.Text small strong color="var(--figma-color-text-danger)">Error</T.Text>
+        <T.Text small color="var(--figma-color-text)">{state.message}</T.Text>
+      </div>
+      <T.Button variant="secondary" stretch onclick={() => (state = { name: 'idle' })}>Try again</T.Button>
 
-  {:else if state.name === 'loaded'}
-    <CaptureSummary capture={state.capture} />
-    <label class={styles.checkRow}>
-      <input type="checkbox" bind:checked={simplify} />
-      <span>Simplify structure <small>(collapse wrapper-only nodes)</small></span>
-    </label>
-    <div class={styles.actions}>
-      <button class={styles.primaryBtn} onclick={build}>Create frame</button>
-      <button class={styles.secondaryBtn} onclick={() => (state = { name: 'idle' })}>Change file</button>
-    </div>
+    {:else if state.name === 'loaded'}
+      <CaptureSummary capture={state.capture} />
+      <!-- <T.Checkbox bind:checked={simplify} label="Simplify structure" /> -->
+      <div class="tabs-row">
+        <T.Text small color="var(--figma-color-text-secondary)">SVG icon color</T.Text>
+        <T.Tabs tabs={[{ id: 'stroke', label: 'Stroke' }, { id: 'fill', label: 'Fill' }]} bind:activeTab={iconMode} />
+      </div>
+      <div class="footer">
+        <T.Button stretch onclick={build}>Create</T.Button>
+        <T.Button variant="secondary" stretch onclick={() => (state = { name: 'idle' })}>Change file</T.Button>
+      </div>
 
-  {:else if state.name === 'building'}
-    <ProgressBar current={state.current} total={state.total} phase={state.phase} />
+    {:else if state.name === 'building'}
+      <ProgressBar current={state.current} total={state.total} phase={state.phase} />
 
-  {:else if state.name === 'done'}
-    {@const r = state.result}
-    <div class={styles.doneGrid}>
-      <div class={styles.stat}><span class={styles.statVal}>{r.nodesCreated.toLocaleString()}</span><span class={styles.statKey}>nodes created</span></div>
-      <div class={styles.stat}><span class={styles.statVal}>{r.nodesCollapsed.toLocaleString()}</span><span class={styles.statKey}>collapsed</span></div>
-      <div class={styles.stat}><span class={styles.statVal}>{r.warnings.length}</span><span class={styles.statKey}>warnings</span></div>
-      <div class={styles.stat}><span class={styles.statVal}>{r.missingFonts.length}</span><span class={styles.statKey}>font subs</span></div>
-    </div>
-    {#if r.missingFonts.length > 0}
-      <div class={styles.missingFonts}>
-        <strong>Font substitutions (→ Inter Regular)</strong>
-        <ul>
-          {#each r.missingFonts as f}<li>{f.family} {f.style}</li>{/each}
-        </ul>
+    {:else if state.name === 'done'}
+      {@const r = state.result}
+      <div class="stat-grid">
+        <div class="stat">
+          <T.Text jumbo>{r.nodesCreated.toLocaleString()}</T.Text>
+          <T.Text small color="var(--figma-color-text-secondary)">nodes created</T.Text>
+        </div>
+        <div class="stat">
+          <T.Text jumbo>{r.nodesCollapsed.toLocaleString()}</T.Text>
+          <T.Text small color="var(--figma-color-text-secondary)">collapsed</T.Text>
+        </div>
+        <div class="stat">
+          <T.Text jumbo>{r.warnings.length}</T.Text>
+          <T.Text small color="var(--figma-color-text-secondary)">warnings</T.Text>
+        </div>
+        <div class="stat">
+          <T.Text jumbo>{r.missingFonts.length}</T.Text>
+          <T.Text small color="var(--figma-color-text-secondary)">font subs</T.Text>
+        </div>
+      </div>
+      {#if r.missingFonts.length > 0}
+        <div class="missing-fonts">
+          <T.Text small strong color="var(--figma-color-text-warning)">Font substitutions → Inter Regular</T.Text>
+          <ul>
+            {#each r.missingFonts as f}
+              <li><T.Text small>{f.family} {f.style}</T.Text></li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+      <WarningsList warnings={r.warnings} />
+      <div class="footer">
+        <T.Button variant="secondary" stretch onclick={() => (state = { name: 'idle' })}>Import another</T.Button>
       </div>
     {/if}
-    <WarningsList warnings={r.warnings} />
-    <button class={styles.secondaryBtn} onclick={() => (state = { name: 'idle' })}>Import another</button>
-  {/if}
-</main>
+  <!-- </T.Autolayout> -->
 
-<style>
-  :global(*, *::before, *::after) { box-sizing: border-box; margin: 0; padding: 0; }
-  :global(body) { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; }
+
+<style lang="scss">
+
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 100;
+    padding: var(--20px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--8px);
+    background: var(--figma-color-bg);
+    border-top: 1px solid var(--figma-color-border);
+  }
+  
+  .error-box {
+    background: var(--figma-color-bg-danger-tertiary);
+    border: 1px solid var(--figma-color-border-danger);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tabs-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--8px);
+    padding: 0 0 var(--20px);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap:  var(--8px);
+    margin-bottom: var(--8px);
+  }
+  .stat {
+    background: var(--figma-color-bg-secondary);
+    border: 1px solid var(--figma-color-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .missing-fonts {
+    background: var(--figma-color-bg-warning-tertiary);
+    border: 1px solid var(--figma-color-border-warning);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: var(--8px);
+  }
+  .missing-fonts ul {
+    padding-left: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
 </style>

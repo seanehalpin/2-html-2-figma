@@ -92,7 +92,7 @@ export function applyFrameProperties(
     // No background-color but there is a background image — use a placeholder so the
     // element is at least visible in Figma.
     frame.fills = [toSolidPaint(0.9, 0.9, 0.9, 1)];
-    warnings.push({ level: 'info', nodeId: node.id, message: `background-image not reproduced on ${node.id}` });
+    warnings.push({ level: 'info', nodeId: frame.id, message: `background-image not reproduced on ${node.id}` });
   } else {
     frame.fills = [];
   }
@@ -112,24 +112,31 @@ export function applyFrameProperties(
     frame.bottomLeftRadius = bl;
   }
 
-  // Stroke / border — use top border, warn if sides differ
-  const bw = [
-    px(node.computedStyles['border-top-width']),
-    px(node.computedStyles['border-right-width']),
-    px(node.computedStyles['border-bottom-width']),
-    px(node.computedStyles['border-left-width']),
-  ];
-  const topW = bw[0];
+  // Stroke / border — respect individual side weights via Figma's per-side stroke API
+  const bTop    = px(node.computedStyles['border-top-width']);
+  const bRight  = px(node.computedStyles['border-right-width']);
+  const bBottom = px(node.computedStyles['border-bottom-width']);
+  const bLeft   = px(node.computedStyles['border-left-width']);
+  const maxBW   = Math.max(bTop, bRight, bBottom, bLeft);
 
-  if (topW > 0) {
-    const bc = parseColor(node.computedStyles['border-top-color'] || '');
+  if (maxBW > 0) {
+    // Pick color from the first non-zero side (Figma supports one stroke color)
+    const sidePairs: [number, string][] = [
+      [bTop, 'border-top-color'],
+      [bRight, 'border-right-color'],
+      [bBottom, 'border-bottom-color'],
+      [bLeft, 'border-left-color'],
+    ];
+    const colorKey = (sidePairs.find(([w]) => w > 0) ?? sidePairs[0])[1];
+    const bc = parseColor(node.computedStyles[colorKey] || '');
     if (bc) {
       frame.strokes = [toSolidPaint(bc.r, bc.g, bc.b, bc.a)];
-      frame.strokeWeight = topW;
+      frame.strokeWeight    = maxBW;
+      frame.strokeTopWeight    = bTop;
+      frame.strokeRightWeight  = bRight;
+      frame.strokeBottomWeight = bBottom;
+      frame.strokeLeftWeight   = bLeft;
       frame.strokeAlign = 'INSIDE';
-      if (!bw.every(w => w === topW)) {
-        warnings.push({ level: 'warning', nodeId: node.id, message: `${node.id}: border sides differ — using top border weight for all` });
-      }
     }
   }
 
@@ -163,17 +170,19 @@ export function applyFrameProperties(
 
   if (effects.length) frame.effects = effects;
 
-  // Opacity
+  // Opacity — skip opacity:0 so visually-hidden-but-structural nodes still show
   const opacity = parseFloat(node.computedStyles['opacity'] || '1');
-  if (!isNaN(opacity) && opacity < 1) frame.opacity = opacity;
+  if (!isNaN(opacity) && opacity < 1 && opacity > 0) frame.opacity = opacity;
 
   // Overflow / clip — also required when a shadow has spread (Figma needs it to render)
+  const ALWAYS_CLIP_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea']);
   const clips = new Set(['hidden', 'clip', 'scroll', 'auto']);
   const hasSpread = effects.some(e =>
     (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && (e as DropShadowEffect).spread
   );
   frame.clipsContent =
     hasSpread ||
+    ALWAYS_CLIP_TAGS.has(node.tag) ||
     clips.has(node.computedStyles['overflow-x'] || '') ||
     clips.has(node.computedStyles['overflow-y'] || '');
 }

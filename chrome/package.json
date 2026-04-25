@@ -9,7 +9,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.0.0",
+    "teenoo": "^0.0.54"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0",
