@@ -18,7 +18,6 @@ export interface CapturedNode {
 }
 
 export interface Viewport {
-  requestedWidth: number;
   actualWidth: number;
   actualHeight: number;
   devicePixelRatio: number;
