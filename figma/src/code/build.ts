@@ -6,6 +6,7 @@ import { collectFontIds, loadFonts } from './fonts';
 import { parseColor } from './colors';
 import { applyFrameProperties } from './nodes/frame';
 import { applyTextProperties } from './nodes/text';
+import { applyAutoLayoutChildOverrides, applyAutoLayoutProperties, isFlexContainer } from './nodes/autolayout';
 
 const ICON_PARENT_TAGS = new Set(['a', 'span', 'button']);
 const GEOMETRY_TYPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'ELLIPSE', 'POLYGON', 'RECTANGLE', 'LINE']);
@@ -102,6 +103,7 @@ function extractVectors(
 export interface BuildOptions {
   simplify: boolean;
   iconMode: 'stroke' | 'fill';
+  useAutoLayout: boolean;
   onProgress: (current: number, total: number, phase: string) => void;
 }
 
@@ -126,6 +128,8 @@ async function walkTree(
   counter: { n: number; total: number },
   onProgress: (current: number, total: number, phase: string) => void,
   iconMode: 'stroke' | 'fill',
+  useAutoLayout: boolean,
+  parentHasAutoLayout: boolean,
   inherited: Record<string, string> = {},
   parentTag = '',
 ): Promise<void> {
@@ -158,6 +162,7 @@ async function walkTree(
         svgFrame.x = Math.round(relX);
         svgFrame.y = Math.round(relY);
         parent.appendChild(svgFrame);
+        if (parentHasAutoLayout) applyAutoLayoutChildOverrides(svgFrame, node);
         paintVectors(svgFrame, maskColor, iconMode);
       } else if (isInlineIcon && !svgHasOwnColors(node.svgData!)) {
         // Inline SVG monochrome icon: recolor with parent text color
@@ -169,12 +174,14 @@ async function walkTree(
         svgFrame.x = Math.round(relX);
         svgFrame.y = Math.round(relY);
         parent.appendChild(svgFrame);
+        if (parentHasAutoLayout) applyAutoLayoutChildOverrides(svgFrame, node);
       } else {
         // Illustration: keep the full SVG frame structure intact
         svgFrame.name = `svg · ${node.id}`;
         svgFrame.x = Math.round(relX);
         svgFrame.y = Math.round(relY);
         parent.appendChild(svgFrame);
+        if (parentHasAutoLayout) applyAutoLayoutChildOverrides(svgFrame, node);
       }
     } catch {
       const frame = figma.createFrame();
@@ -184,6 +191,7 @@ async function walkTree(
       frame.resize(Math.max(1, node.rect.width), Math.max(1, node.rect.height));
       frame.fills = [];
       parent.appendChild(frame);
+      if (parentHasAutoLayout) applyAutoLayoutChildOverrides(frame, node);
     }
   } else if (isTextNode(node)) {
     const textNode = figma.createText();
@@ -202,19 +210,25 @@ async function walkTree(
         textNode.y = Math.round((frame.height - textNode.height) / 2);
       }
       parent.appendChild(frame);
+      if (parentHasAutoLayout) applyAutoLayoutChildOverrides(frame, node);
     } else {
       applyTextProperties(textNode, nodeWithInherited, relX, relY, fontMap, warnings);
       parent.appendChild(textNode);
+      if (parentHasAutoLayout) applyAutoLayoutChildOverrides(textNode, node);
     }
   } else {
     const frame = figma.createFrame();
     applyFrameProperties(frame, node, relX, relY, warnings);
 
+    const applyAL = useAutoLayout && isFlexContainer(node);
+    if (applyAL) applyAutoLayoutProperties(frame, node);
+
     for (const child of node.children) {
-      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, iconMode, effective, node.tag);
+      await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, iconMode, useAutoLayout, applyAL, effective, node.tag);
     }
 
     parent.appendChild(frame);
+    if (parentHasAutoLayout) applyAutoLayoutChildOverrides(frame, node);
   }
 
   if (counter.n % 50 === 0) {
@@ -257,7 +271,7 @@ export async function buildCapture(capture: Capture, options: BuildOptions): Pro
   rootFrame.clipsContent = true;
 
   // The tree root is the <html> element; position it relative to the viewport (0,0)
-  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress, options.iconMode);
+  await walkTree(tree, rootFrame, { x: 0, y: 0 }, fontMap, warnings, counter, options.onProgress, options.iconMode, options.useAutoLayout, false);
 
   page.appendChild(rootFrame);
   figma.currentPage.selection = [rootFrame];

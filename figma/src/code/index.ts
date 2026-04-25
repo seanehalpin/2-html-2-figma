@@ -28,6 +28,7 @@ figma.ui.onmessage = async (raw: UIToPlugin) => {
     const result = await buildCapture(raw.capture, {
       simplify: raw.simplify,
       iconMode: raw.iconMode,
+      useAutoLayout: raw.useAutoLayout,
       onProgress(current, total, phase) {
         send({ type: 'progress', current, total, phase });
       },

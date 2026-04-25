@@ -19,6 +19,7 @@
   let state = $state<Phase>({ name: 'idle' });
   let simplify = $state(true);
   let iconMode = $state<'stroke' | 'fill'>('stroke');
+  let useAutoLayout = $state(false);
 
   function validate(obj: unknown): Capture {
     if (!obj || typeof obj !== 'object') throw new Error('Not a valid JSON object');
@@ -52,7 +53,7 @@
     if (state.name !== 'loaded') return;
     const capture = $state.snapshot(state.capture) as Capture;
     state = { name: 'building', current: 0, total: 1, phase: 'Loading fonts' };
-    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify, iconMode } }, '*');
+    parent.postMessage({ pluginMessage: { type: 'build-request', capture, simplify, iconMode, useAutoLayout } }, '*');
   }
 
   window.addEventListener('message', (event: MessageEvent) => {
@@ -87,6 +88,9 @@
       <div class="tabs-row">
         <T.Text small color="var(--figma-color-text-secondary)">SVG icon color</T.Text>
         <T.Tabs tabs={[{ id: 'stroke', label: 'Stroke' }, { id: 'fill', label: 'Fill' }]} bind:activeTab={iconMode} />
+      </div>
+      <div class="option-row">
+        <T.Checkbox bind:checked={useAutoLayout} label="Convert flex to auto layout" />
       </div>
       <div class="footer">
         <T.Button stretch onclick={build}>Create</T.Button>
@@ -164,6 +168,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--8px);
+    padding: 0 0 var(--20px);
+  }
+
+  .option-row {
     padding: 0 0 var(--20px);
   }
 
