@@ -108,6 +108,42 @@ function makeRect(r: DOMRect) {
   return { x: r2(r.x), y: r2(r.y), width: r2(r.width), height: r2(r.height) };
 }
 
+/**
+ * `display: contents` removes an element's own box: getBoundingClientRect returns
+ * 0×0 even though its children render normally. Common in component libraries
+ * (e.g. Tines's HidableButtonContent wrapper) for spans that hold flex items
+ * without participating in layout themselves. For these, fall back to the union
+ * of child rects so the captured node has a meaningful size.
+ */
+function getEffectiveRect(el: Element, cs: CSSStyleDeclaration): DOMRect {
+  if (cs.display !== 'contents') return el.getBoundingClientRect();
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const child of Array.from(el.childNodes)) {
+    let r: DOMRect | null = null;
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const childCs = window.getComputedStyle(child as Element);
+      r = getEffectiveRect(child as Element, childCs);
+    } else if (child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim()) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(child);
+        r = range.getBoundingClientRect();
+      } catch {
+        // Range not measurable — skip.
+      }
+    }
+    if (r && (r.width > 0 || r.height > 0)) {
+      if (r.x < minX) minX = r.x;
+      if (r.y < minY) minY = r.y;
+      if (r.right > maxX) maxX = r.right;
+      if (r.bottom > maxY) maxY = r.bottom;
+    }
+  }
+  if (!isFinite(minX)) return el.getBoundingClientRect();
+  return new DOMRect(minX, minY, maxX - minX, maxY - minY);
+}
+
 // Recursively collects CSSStyleRules from a rule list, descending into
 // @media, @supports, @layer, and any other grouping rules (CSSGroupingRule).
 function collectStyleRules(rules: CSSRuleList): CSSStyleRule[] {
@@ -214,7 +250,7 @@ function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean
 // TODO: pseudo-element capture not implemented.
 async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<CapturedNode | null> {
   const cs = window.getComputedStyle(el);
-  const rect = el.getBoundingClientRect();
+  const rect = getEffectiveRect(el, cs);
 
   if (isSkipped(el, cs, rect)) return null;
 
@@ -275,7 +311,10 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
 
   const childNodes = Array.from(el.childNodes);
   // Inline formatting tags — transparent text wrappers, not block children.
-  const INLINE_TAGS = new Set(['strong', 'em', 'b', 'i', 'u', 's', 'code', 'mark', 'cite', 'small', 'abbr', 'time']);
+  // <i> is intentionally excluded: in practice it's almost always an icon-font glyph
+  // (Font Awesome, Material Icons, etc.) where the text content is a private-use
+  // codepoint or a screen-reader label, not anything we want to render.
+  const INLINE_TAGS = new Set(['strong', 'em', 'b', 'u', 's', 'code', 'mark', 'cite', 'small', 'abbr', 'time']);
   const hasBlockChildren = childNodes.some(n =>
     n.nodeType === Node.ELEMENT_NODE &&
     !INLINE_TAGS.has((n as Element).tagName.toLowerCase())
@@ -285,7 +324,10 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
   let textRuns: { text: string; computedStyles: Record<string, string> }[] | undefined;
   const children: CapturedNode[] = [];
 
-  if (!hasBlockChildren) {
+  if (tag === 'i') {
+    // Icon-font element: skip text extraction. Element is preserved as an empty
+    // leaf so its position/size and computed styles are still available downstream.
+  } else if (!hasBlockChildren) {
     const hasInlineEls = childNodes.some(n =>
       n.nodeType === Node.ELEMENT_NODE &&
       INLINE_TAGS.has((n as Element).tagName.toLowerCase())
