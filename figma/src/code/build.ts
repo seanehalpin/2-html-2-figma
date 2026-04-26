@@ -132,6 +132,23 @@ function isTextNode(node: CapturedNode): boolean {
     (node.textRuns !== undefined && node.children.length === 0);
 }
 
+// Figma's layer stacking follows appendChild order — later children render on top.
+// CSS `position: fixed` is supposed to float above the rest of the page, so move
+// fixed children to the end of their parent's child list. Relative document order
+// is preserved within each group.
+function reorderForFixedStacking(children: CapturedNode[]): CapturedNode[] {
+  const normal: CapturedNode[] = [];
+  const fixed: CapturedNode[] = [];
+  for (const child of children) {
+    if (child.computedStyles['position'] === 'fixed') {
+      fixed.push(child);
+    } else {
+      normal.push(child);
+    }
+  }
+  return fixed.length === 0 ? children : [...normal, ...fixed];
+}
+
 // CSS properties that cascade down to child text nodes.
 const INHERITED_TEXT_PROPS = [
   'color', 'font-family', 'font-size', 'font-weight', 'font-style',
@@ -250,7 +267,7 @@ async function walkTree(
     const applyAL = useAutoLayout && isFlexContainer(node);
     if (applyAL) applyAutoLayoutProperties(frame, node);
 
-    for (const child of node.children) {
+    for (const child of reorderForFixedStacking(node.children)) {
       await walkTree(child, frame, { x: node.rect.x, y: node.rect.y }, fontMap, warnings, counter, onProgress, iconMode, useAutoLayout, applyAL, effective, node.tag);
     }
 
