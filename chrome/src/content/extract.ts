@@ -358,6 +358,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
     // We use bcr-of-each-child unioned for the true screen rect, and getBBox only for
     // the user-space viewBox the SVG markup needs.
     let svgOverride: { viewBox: string; width: number; height: number } | undefined;
+    let svgGeometryOutsideBox = false;
     if (!innerSvg.getAttribute('viewBox')) {
       try {
         const bbox = (innerSvg as unknown as SVGGraphicsElement).getBBox();
@@ -376,6 +377,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
             width: bbox.width,
             height: bbox.height,
           };
+          svgGeometryOutsideBox = true;
         }
       } catch {
         // getBBox throws on disconnected/unrendered elements — fall through.
@@ -394,6 +396,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
       id,
       tag,
       svgData: serializeSvgWithComputedStyles(innerSvg, svgOverride),
+      ...(svgGeometryOutsideBox ? { svgGeometryOutsideBox: true } : {}),
       rect: svgRect,
       computedStyles: getComputedStylesFiltered(el),
       originalDeclarations: getOriginalDeclarations(el, allRules),
