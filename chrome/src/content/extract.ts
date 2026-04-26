@@ -85,6 +85,54 @@ function findInnermostSvg(svgEl: Element): Element {
   }
 }
 
+function parseViewBox(s: string | null): { w: number; h: number } | null {
+  if (!s) return null;
+  const parts = s.trim().split(/[\s,]+/).map(Number);
+  if (parts.length !== 4 || !parts.every(Number.isFinite) || parts[2] <= 0 || parts[3] <= 0) return null;
+  return { w: parts[2], h: parts[3] };
+}
+
+function parseSvgLen(attr: string | null, fallback: number): number {
+  if (!attr) return fallback;
+  const trimmed = attr.trim();
+  if (trimmed.endsWith('%')) {
+    const pct = parseFloat(trimmed) / 100;
+    return Number.isFinite(pct) ? fallback * pct : fallback;
+  }
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Screen-pixel rect of an inner <svg> nested inside an outer <svg>. Maps the
+ * inner's declared width/height (in the outer's user-unit space) through the
+ * outer's viewBox-to-screen scale.
+ *
+ * Why not innerSvg.getBoundingClientRect()? On a nested SVG element bcr returns
+ * the painted-content bbox (the drawn path extent), not the inner's declared
+ * viewport — so `<svg viewBox="0 0 16 16" width="16">` containing a path that
+ * only fills part of its viewBox reports the path's bbox instead of 16×16.
+ */
+function getInnerNestedSvgRect(
+  outerSvg: Element,
+  innerSvg: Element,
+  outerScreenRect: { x: number; y: number; width: number; height: number },
+): { x: number; y: number; width: number; height: number } {
+  const vb = parseViewBox(outerSvg.getAttribute('viewBox'));
+  const userW = vb ? vb.w : outerScreenRect.width;
+  const userH = vb ? vb.h : outerScreenRect.height;
+  const sx = userW > 0 ? outerScreenRect.width / userW : 1;
+  const sy = userH > 0 ? outerScreenRect.height / userH : 1;
+  const innerW = parseSvgLen(innerSvg.getAttribute('width'), userW);
+  const innerH = parseSvgLen(innerSvg.getAttribute('height'), userH);
+  return {
+    x: outerScreenRect.x,
+    y: outerScreenRect.y,
+    width: innerW * sx,
+    height: innerH * sy,
+  };
+}
+
 /**
  * Clone an SVG element and inline all computed paint values so CSS variables,
  * currentColor, and class-based colours are self-contained in the markup.
@@ -287,6 +335,9 @@ function getComputedStylesFiltered(el: Element): Record<string, string> {
 function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean {
   if (SKIP_TAGS.has(el.tagName.toLowerCase())) return true;
   if (el.getAttribute('data-expanded') === 'false') return true;
+  // React-Flow / Tines storyboard connector handles are draggable UI controls,
+  // not document content — skip them so they don't render as decorative circles.
+  if (el.getAttribute('data-testid') === 'storyboard-link-handle-primary-icon') return true;
   if (cs.display === 'none') return true;
   if (cs.visibility === 'hidden') return true;
   // "Visually hidden" accessibility pattern — clip: rect(0,0,0,0) or clip-path: inset(50%).
@@ -338,7 +389,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
     const innerSvg = findInnermostSvg(el);
     let svgRect = capturedRect;
     if (innerSvg !== el) {
-      const innerRect = makeRect(innerSvg.getBoundingClientRect());
+      const innerRect = getInnerNestedSvgRect(el, innerSvg, capturedRect);
       if (innerRect.width >= 1 && innerRect.height >= 1) svgRect = innerRect;
     }
 
