@@ -67,8 +67,14 @@ function findInnermostSvg(svgEl: Element): Element {
  * Clone an SVG element and inline all computed paint values so CSS variables,
  * currentColor, and class-based colours are self-contained in the markup.
  * Figma's SVG parser has no access to page styles, so unresolved references render as black.
+ *
+ * `override` re-anchors the SVG to a specific viewBox / size — used for SVGs that draw
+ * geometry outside their element box (see walkElement).
  */
-function serializeSvgWithComputedStyles(svgEl: Element): string {
+function serializeSvgWithComputedStyles(
+  svgEl: Element,
+  override?: { viewBox: string; width: number; height: number },
+): string {
   const liveEls = [svgEl, ...Array.from(svgEl.querySelectorAll('*'))];
   const clone = svgEl.cloneNode(true) as Element;
   const cloneEls = [clone, ...Array.from(clone.querySelectorAll('*'))];
@@ -82,6 +88,12 @@ function serializeSvgWithComputedStyles(svgEl: Element): string {
     }
     cloneEl.removeAttribute('class');
     cloneEl.removeAttribute('style');
+  }
+
+  if (override) {
+    clone.setAttribute('viewBox', override.viewBox);
+    clone.setAttribute('width', String(override.width));
+    clone.setAttribute('height', String(override.height));
   }
 
   return new XMLSerializer().serializeToString(clone);
@@ -307,6 +319,44 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
       const innerRect = makeRect(innerSvg.getBoundingClientRect());
       if (innerRect.width >= 1 && innerRect.height >= 1) svgRect = innerRect;
     }
+
+    // Some SVGs have no viewBox and use absolute path coordinates that draw outside
+    // the SVG element's box, relying on overflow:visible to render on the page (e.g.
+    // Tines's storyboard-link-path-container connector lines). Without intervention
+    // figma.createNodeFromSvg builds a frame from the path's tiny native bbox and
+    // build.ts's rescale-to-container then blows the stroke width up by the inverse
+    // ratio (a 0.001×45 path scaled to fill 120×165 multiplies stroke-width by 120000+).
+    // Re-anchor with a viewBox + width/height matching the geometry's natural extent
+    // and report the rect at the geometry's real page position.
+    let svgOverride: { viewBox: string; width: number; height: number } | undefined;
+    if (!innerSvg.getAttribute('viewBox')) {
+      try {
+        const bbox = (innerSvg as unknown as SVGGraphicsElement).getBBox();
+        const elRect = innerSvg.getBoundingClientRect();
+        const drawnOutside =
+          bbox.x < -1 || bbox.y < -1 ||
+          bbox.x + bbox.width > elRect.width + 1 ||
+          bbox.y + bbox.height > elRect.height + 1;
+        if (drawnOutside && bbox.width >= 1 && bbox.height >= 1) {
+          // No viewBox means user units == CSS pixels, so geometry renders at
+          // svg_element_pos + bbox offset.
+          svgRect = {
+            x: r2(elRect.left + bbox.x),
+            y: r2(elRect.top + bbox.y),
+            width: r2(bbox.width),
+            height: r2(bbox.height),
+          };
+          svgOverride = {
+            viewBox: `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`,
+            width: bbox.width,
+            height: bbox.height,
+          };
+        }
+      } catch {
+        // getBBox throws on disconnected/unrendered elements — fall through.
+      }
+    }
+
     // DOM rect can still be 0 when a CSS transform collapses the parent (e.g. scaleX(0)).
     // Fall back to the inner SVG's own width/height attributes for a sensible size.
     if (svgRect.width < 1 || svgRect.height < 1) {
@@ -318,7 +368,7 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
     return {
       id,
       tag,
-      svgData: serializeSvgWithComputedStyles(innerSvg),
+      svgData: serializeSvgWithComputedStyles(innerSvg, svgOverride),
       rect: svgRect,
       computedStyles: getComputedStylesFiltered(el),
       originalDeclarations: getOriginalDeclarations(el, allRules),

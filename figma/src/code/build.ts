@@ -11,6 +11,25 @@ import { applyAutoLayoutChildOverrides, applyAutoLayoutProperties, isFlexContain
 const ICON_PARENT_TAGS = new Set(['a', 'span', 'button']);
 const GEOMETRY_TYPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'ELLIPSE', 'POLYGON', 'RECTANGLE', 'LINE']);
 
+// Defensive cap on stroke width after rescale. Real-world SVG icons/illustrations never
+// need anything close to this — anything larger means we mis-detected the SVG's natural
+// size and blew up the stroke by the rescale ratio (see extract.ts svg handling).
+const MAX_STROKE_WEIGHT_PX = 20;
+
+function clampStrokeWeights(node: SceneNode): void {
+  if ('strokeWeight' in node) {
+    const sw = (node as MinimalStrokesMixin).strokeWeight;
+    if (typeof sw === 'number' && sw > MAX_STROKE_WEIGHT_PX) {
+      (node as MinimalStrokesMixin).strokeWeight = MAX_STROKE_WEIGHT_PX;
+    }
+  }
+  if ('children' in node) {
+    for (const child of (node as ChildrenMixin).children) {
+      clampStrokeWeights(child);
+    }
+  }
+}
+
 // After serializeSvgWithComputedStyles, all CSS vars and currentColor are resolved to real
 // RGB values. If an SVG has fill-opacity variations OR multiple distinct fill colors, it's an
 // illustration with intentional multi-color design — not a single-color icon to be recolored.
@@ -151,6 +170,7 @@ async function walkTree(
       removeClipGroups(svgFrame);
       const targetW = Math.max(1, node.rect.width);
       if (svgFrame.width > 0) svgFrame.rescale(targetW / svgFrame.width);
+      clampStrokeWeights(svgFrame);
 
       const isMaskIcon = node.tag !== 'svg';
       const isInlineIcon = node.tag === 'svg' && ICON_PARENT_TAGS.has(parentTag);
