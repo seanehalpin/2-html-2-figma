@@ -41,6 +41,28 @@ const SVG_PAINT_PROPS = ['fill', 'stroke', 'stroke-width', 'fill-opacity', 'stro
 // SVG metadata-only children that don't contribute to the rendered icon.
 const SVG_METADATA_TAGS = new Set(['title', 'desc', 'defs', 'metadata']);
 
+const SVG_GEOMETRY_SELECTOR = 'path, rect, circle, ellipse, line, polyline, polygon, text, image, use, foreignObject';
+
+/**
+ * Union the screen-space bounding rects of every geometry descendant.
+ * `getBoundingClientRect()` on each child already includes all ancestor CSS
+ * transforms (e.g. a parent's `scale(0.3)`), so the result is the true on-page
+ * footprint — no manual unit conversion needed.
+ */
+function getGeometryScreenRect(svg: Element): DOMRect | null {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const g of Array.from(svg.querySelectorAll(SVG_GEOMETRY_SELECTOR))) {
+    const r = g.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) continue;
+    if (r.left < minX) minX = r.left;
+    if (r.top < minY) minY = r.top;
+    if (r.right > maxX) maxX = r.right;
+    if (r.bottom > maxY) maxY = r.bottom;
+  }
+  if (!isFinite(minX)) return null;
+  return new DOMRect(minX, minY, maxX - minX, maxY - minY);
+}
+
 /**
  * Walk past wrapper <svg> elements to the innermost svg that holds the actual
  * icon geometry. Some icon libraries emit <svg viewBox="0 0 256 256"> wrapped
@@ -322,30 +344,33 @@ async function walkElement(el: Element, allRules: CSSStyleRule[]): Promise<Captu
 
     // Some SVGs have no viewBox and use absolute path coordinates that draw outside
     // the SVG element's box, relying on overflow:visible to render on the page (e.g.
-    // Tines's storyboard-link-path-container connector lines). Without intervention
+    // Tines's storyboard-link-path-container connector lines, where path d="M202,240..."
+    // sits inside a 270×150 svg pinned at (0,0)). Without intervention
     // figma.createNodeFromSvg builds a frame from the path's tiny native bbox and
     // build.ts's rescale-to-container then blows the stroke width up by the inverse
     // ratio (a 0.001×45 path scaled to fill 120×165 multiplies stroke-width by 120000+).
     // Re-anchor with a viewBox + width/height matching the geometry's natural extent
     // and report the rect at the geometry's real page position.
+    //
+    // Coord-space gotcha: getBBox() returns user units; getBoundingClientRect() returns
+    // screen pixels (post ancestor CSS transforms). Mixing them — e.g. elRect.left +
+    // bbox.x — is wrong whenever an ancestor like Tines's StyledSurface applies scale().
+    // We use bcr-of-each-child unioned for the true screen rect, and getBBox only for
+    // the user-space viewBox the SVG markup needs.
     let svgOverride: { viewBox: string; width: number; height: number } | undefined;
     if (!innerSvg.getAttribute('viewBox')) {
       try {
         const bbox = (innerSvg as unknown as SVGGraphicsElement).getBBox();
         const elRect = innerSvg.getBoundingClientRect();
-        const drawnOutside =
-          bbox.x < -1 || bbox.y < -1 ||
-          bbox.x + bbox.width > elRect.width + 1 ||
-          bbox.y + bbox.height > elRect.height + 1;
-        if (drawnOutside && bbox.width >= 1 && bbox.height >= 1) {
-          // No viewBox means user units == CSS pixels, so geometry renders at
-          // svg_element_pos + bbox offset.
-          svgRect = {
-            x: r2(elRect.left + bbox.x),
-            y: r2(elRect.top + bbox.y),
-            width: r2(bbox.width),
-            height: r2(bbox.height),
-          };
+        const geomRect = getGeometryScreenRect(innerSvg);
+        const drawnOutside = geomRect !== null && (
+          geomRect.left < elRect.left - 1 ||
+          geomRect.top < elRect.top - 1 ||
+          geomRect.right > elRect.right + 1 ||
+          geomRect.bottom > elRect.bottom + 1
+        );
+        if (drawnOutside && bbox.width >= 1 && bbox.height >= 1 && geomRect) {
+          svgRect = makeRect(geomRect);
           svgOverride = {
             viewBox: `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`,
             width: bbox.width,
