@@ -287,6 +287,9 @@ function getComputedStylesFiltered(el: Element): Record<string, string> {
 function isSkipped(el: Element, cs: CSSStyleDeclaration, rect: DOMRect): boolean {
   if (SKIP_TAGS.has(el.tagName.toLowerCase())) return true;
   if (el.getAttribute('data-expanded') === 'false') return true;
+  // React-Flow / Tines storyboard connector handles are draggable UI controls,
+  // not document content — skip them so they don't render as decorative circles.
+  if (el.getAttribute('data-testid') === 'storyboard-link-handle-primary-icon') return true;
   if (cs.display === 'none') return true;
   if (cs.visibility === 'hidden') return true;
   // "Visually hidden" accessibility pattern — clip: rect(0,0,0,0) or clip-path: inset(50%).
