@@ -12,10 +12,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       let contentResponse: { type: string; payload?: CapturePayload; error?: string };
       try {
         contentResponse = await chrome.tabs.sendMessage(tab.id, message);
-      } catch (err) {
-        throw new Error(
-          `Content script unreachable. Try reloading the page. (${err instanceof Error ? err.message : String(err)})`
-        );
+      } catch {
+        // Usually means the page was loaded before the extension was installed/updated,
+        // or the page navigated away — a reload re-injects the content script.
+        sendResponse({
+          type: 'capture-error',
+          error: "This page hasn't loaded the extension yet. Refresh the page and try again.",
+          code: 'content-script-unreachable',
+        });
+        return;
       }
 
       if (contentResponse.type === 'capture-error') {

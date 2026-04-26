@@ -2,13 +2,13 @@
 
 <script lang="ts">
   import styles from './styles.module.css';
-  import type { Capture } from '../content/types';
+  import type { Capture, CaptureErrorCode } from '../content/types';
 
   type CaptureState =
     | { status: 'idle' }
     | { status: 'capturing' }
     | { status: 'done'; capture: Capture }
-    | { status: 'error'; message: string };
+    | { status: 'error'; message: string; code?: CaptureErrorCode };
 
   let captureState = $state<CaptureState>({ status: 'idle' });
 
@@ -43,7 +43,11 @@
       if (response?.type === 'capture-response') {
         captureState = { status: 'done', capture: response.payload as Capture };
       } else if (response?.type === 'capture-error') {
-        captureState = { status: 'error', message: response.error as string };
+        captureState = {
+          status: 'error',
+          message: response.error as string,
+          code: response.code as CaptureErrorCode | undefined,
+        };
       } else {
         captureState = { status: 'error', message: 'Unexpected response from extension' };
       }
@@ -71,6 +75,14 @@
   async function copyToClipboard() {
     if (captureState.status !== 'done') return;
     await navigator.clipboard.writeText(JSON.stringify(captureState.capture, null, 2));
+  }
+
+  async function reloadActiveTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await chrome.tabs.reload(tab.id);
+      window.close();
+    }
   }
 </script>
 
@@ -103,6 +115,11 @@
   {/if}
 
   {#if captureState.status === 'error'}
-    <p class={styles.error}>{captureState.message}</p>
+    <div class={styles.error}>
+      <p class={styles.errorMessage}>{captureState.message}</p>
+      {#if captureState.code === 'content-script-unreachable'}
+        <button class={styles.reloadBtn} onclick={reloadActiveTab}>Reload page</button>
+      {/if}
+    </div>
   {/if}
 </main>

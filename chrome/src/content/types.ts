@@ -47,7 +47,9 @@ export interface Capture {
 // Content script returns this; background adds `screenshot` before forwarding to popup.
 export type CapturePayload = Omit<Capture, 'screenshot'>;
 
+export type CaptureErrorCode = 'content-script-unreachable';
+
 export type Message =
   | { type: 'capture-request' }
   | { type: 'capture-response'; payload: Capture }
-  | { type: 'capture-error'; error: string };
+  | { type: 'capture-error'; error: string; code?: CaptureErrorCode };
