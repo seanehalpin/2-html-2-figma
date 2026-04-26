@@ -184,6 +184,13 @@ async function walkTree(
         parent.appendChild(svgFrame);
         if (parentHasAutoLayout) applyAutoLayoutChildOverrides(svgFrame, node);
         paintVectors(svgFrame, maskColor, iconMode);
+      } else if (node.svgGeometryOutsideBox) {
+        // Out-of-box SVG (e.g. Tines storyboard connector): extract vectors directly
+        // into the parent at relX/relY. The wrapping svgFrame/group would have its
+        // own (0,0) origin which doesn't carry the path's real page position — unwrap
+        // so each vector lands where the path is in the HTML. Preserve the SVG's own
+        // stroke/fill (no recoloring) since these aren't monochrome icons.
+        extractVectors(svgFrame, parent, Math.round(relX), Math.round(relY), iconMode);
       } else if (isInlineIcon && !svgHasOwnColors(node.svgData!)) {
         // Inline SVG monochrome icon: recolor with parent text color
         const iconColor = parseColor(effective['color'] || '') ?? undefined;
